@@ -87,7 +87,8 @@ export const Console = ({ roomId }: { roomId: string }) => {
           </div>
 
           {/* Desktop: decks around the mixer, library below */}
-          <div className="hidden min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex">
+          {/* pb-28 keeps the last library rows clear of the pinned minimap */}
+          <div className="hidden min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-28 lg:flex">
             <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3">
               <Deck deckId="A" />
               <Mixer />
