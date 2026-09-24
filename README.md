@@ -52,6 +52,23 @@ It is a rebuild of [Beatsync](https://github.com/freeman-jiang/beatsync) ([beats
 
 Crossfader: `[` and `]` move it, `\` centres it.
 
+### Pioneer DDJ-FLX4
+
+Beer holders can play the decks from a Pioneer DDJ-FLX4 over USB. It uses Web MIDI, so it needs Chrome or Edge (desktop or Android). Click **Connect controller** in the console's top bar; the controller reconnects automatically if you unplug it.
+
+| On the FLX4 | In Beersync |
+| --- | --- |
+| PLAY/PAUSE, CUE, SHIFT + CUE | Play/pause, CDJ cue, back to the start |
+| BEAT SYNC, long press, SHIFT + BEAT SYNC | Sync, set as master, change tempo range |
+| Tempo faders | Tempo (takes over once the fader reaches the deck's current tempo) |
+| Jog wheels | Nudge while playing, move the playhead while paused, SHIFT for fast search |
+| Pads: HOT CUE / BEAT JUMP / BEAT LOOP modes | Hot cues (SHIFT deletes), beat jumps of 1–8 beats, loops of 1/4–32 beats |
+| LOOP IN, RELOOP/EXIT, CUE/LOOP CALL ◀ ▶ | 4-beat loop, loop on/off, halve/double; SHIFT + CUE/LOOP CALL jumps 16 beats |
+| Trim, EQ, CFX filter, channel faders, crossfader | The Beersync mixer |
+| Browse knob, LOAD | Move the library selection, load it to deck A or B |
+
+The play, cue, loop and hot cue LEDs and the level meters follow the shared decks, so they stay right when another DJ presses something. If the tempo fader runs the wrong way on your unit, turn on **Reverse tempo fader** in the controller menu. Headphone cue, Beat FX and sampler pads aren't supported yet.
+
 ## How the sync works
 
 Every device measures its clock offset to the sesh server, as in Beatsync. Each deck is shared as a snapshot with a timeline anchor ("at server time T the playhead is at P, moving at rate R"), and every device computes the playhead with the same function, so they all agree on where each deck is. Transport changes (play, pause, cues, loops, tempo, sync) are scheduled for a moment slightly in the future so every device switches at once. Mixer moves apply as soon as they arrive.
@@ -158,7 +175,7 @@ Beersync deploys the way Beatsync does:
 Not built yet:
 
 - Key lock (master tempo), headphone cue / pre-listen, beat FX, mix recording
-- Four decks, MIDI controllers, slip mode, beat grid editing
+- Four decks, more MIDI controllers, slip mode, beat grid editing
 - Crates, playlists and history; accounts
 - Hand-off tools for B2B sets, listener track requests, sesh recaps
 - Drift monitoring and a venue ("booth") relay mode for live shows

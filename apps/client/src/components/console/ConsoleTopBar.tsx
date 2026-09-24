@@ -1,6 +1,7 @@
 "use client";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { useDjStore } from "@/store/dj";
+import { ControllerButton } from "./ControllerButton";
 import { Check, Copy, Crown, Headphones, Moon, PartyPopper, SlidersHorizontal, Sun, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -84,6 +85,7 @@ export const ConsoleTopBar = ({
 
       <div className="ml-auto flex items-center gap-2">
         {currentUser?.isAdmin && <Crown className="size-4 text-[var(--neu-warn)]" aria-label="You are the sesh host" />}
+        {view === "decks" && <ControllerButton />}
         {view && (
           <button
             type="button"

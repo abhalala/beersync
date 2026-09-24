@@ -9,7 +9,8 @@ import type { DeckId, LibraryTrack } from "@beatsync/shared";
 import { camelotToKeyName, isHarmonicMatch } from "@beatsync/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Disc3, Globe, Loader2, Search, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { registerBrowseTarget } from "@/lib/midi/browse";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type View = { kind: "collection" } | { kind: "source"; sourceId: string; genre?: string };
@@ -125,6 +126,31 @@ export const Library = ({ className }: { className?: string }) => {
     }
   };
 
+  // Hardware browse (DDJ-FLX4 browse knob + LOAD buttons) moves this selection
+  const [selected, setSelected] = useState(0);
+  const selectedIndex = Math.min(selected, Math.max(0, rows.length - 1));
+  const latest = useRef({ rows, loadTo, selectedIndex });
+  useEffect(() => {
+    latest.current = { rows, loadTo, selectedIndex };
+  });
+  useEffect(
+    () =>
+      registerBrowseTarget({
+        move: (delta) =>
+          setSelected((i) =>
+            Math.max(0, Math.min(latest.current.rows.length - 1, Math.min(i, latest.current.rows.length - 1) + delta))
+          ),
+        load: (deckId) => {
+          const { rows, loadTo, selectedIndex } = latest.current;
+          if (rows[selectedIndex]) loadTo(rows[selectedIndex], deckId);
+        },
+      }),
+    []
+  );
+  useEffect(() => {
+    document.querySelector(`[data-library-row="${selectedIndex}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
+
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
     setSubmittedQuery(query.trim());
@@ -132,6 +158,7 @@ export const Library = ({ className }: { className?: string }) => {
 
   const selectView = (next: View) => {
     setView(next);
+    setSelected(0);
     setQuery("");
     setSubmittedQuery("");
   };
@@ -248,11 +275,20 @@ export const Library = ({ className }: { className?: string }) => {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {rows.map((row, index) => {
                 const harmonic = isHarmonicMatch(row.key, referenceKey);
                 const onDeck = (["A", "B"] as const).filter((id) => row.url && decks[id].trackUrl === row.url);
                 return (
-                  <tr key={row.id} className="border-t border-[var(--neu-line)] hover:bg-white/[0.03]">
+                  <tr
+                    key={row.id}
+                    data-library-row={index}
+                    aria-selected={index === selectedIndex}
+                    onClick={() => setSelected(index)}
+                    className={cn(
+                      "border-t border-[var(--neu-line)] hover:bg-white/[0.03]",
+                      index === selectedIndex && "bg-white/[0.05] shadow-[inset_3px_0_0_var(--deck-a)]"
+                    )}
+                  >
                     <td className="px-2 py-1.5">
                       {row.artworkUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
