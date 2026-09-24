@@ -1,14 +1,10 @@
 import type { UploadCompleteResponseType, UploadUrlResponseType } from "@beatsync/shared";
 import { GetUploadUrlSchema, UploadCompleteSchema } from "@beatsync/shared";
 import type { BunServer } from "@/utils/websocket";
-import {
-  createKey,
-  generateAudioFileName,
-  generatePresignedUploadUrl,
-  getPublicAudioUrl,
-  validateR2Config,
-} from "@/lib/r2";
+import { createKey, generateAudioFileName } from "@/lib/r2";
 import { globalManager } from "@/managers";
+import { getStorage } from "@/storage";
+import { toStorageFileName } from "@/storage/keys";
 import { errorResponse, jsonResponse, sendBroadcast } from "@/utils/responses";
 
 // New endpoint to get presigned upload URL
@@ -16,13 +12,6 @@ export const handleGetPresignedURL = async (req: Request) => {
   try {
     if (req.method !== "POST") {
       return errorResponse("Method not allowed", 405);
-    }
-
-    // Validate R2 configuration first
-    const r2Validation = validateR2Config();
-    if (!r2Validation.isValid) {
-      console.error("R2 configuration errors:", r2Validation.errors);
-      return errorResponse("R2 configuration not complete", 500);
     }
 
     const body: unknown = await req.json();
@@ -41,14 +30,14 @@ export const handleGetPresignedURL = async (req: Request) => {
     }
 
     // Generate unique filename
-    const uniqueFileName = generateAudioFileName(fileName);
-    const r2Key = createKey(roomId, uniqueFileName);
+    const uniqueFileName = toStorageFileName(generateAudioFileName(fileName));
+    const key = createKey(roomId, uniqueFileName);
 
-    // Generate presigned URL for upload
-    const uploadUrl = await generatePresignedUploadUrl(roomId, uniqueFileName, contentType);
-    const publicUrl = getPublicAudioUrl(roomId, uniqueFileName);
+    // R2: presigned PUT URL. Local storage (no R2 config): signed PUT /media-upload/<key> on this server.
+    const storage = getStorage();
+    const { uploadUrl, publicUrl } = await storage.createUploadTarget(key, contentType);
 
-    console.log(`Generated presigned URL for upload - R2 key: (${r2Key})`);
+    console.log(`Generated ${storage.kind} upload URL - key: (${key})`);
 
     const response: UploadUrlResponseType = {
       uploadUrl,

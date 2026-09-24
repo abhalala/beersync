@@ -1,15 +1,19 @@
 import { ADMIN_SECRET, IS_DEMO_MODE } from "@/demo";
 import { BackupManager } from "@/managers/BackupManager";
+import { getStorage } from "@/storage";
 import { getActiveRooms } from "@/routes/active";
 import { handleGetDefaultAudio } from "@/routes/default";
 import { handleServeAudio } from "@/routes/demoAudio";
 import { handleDiscover } from "@/routes/discover";
 import { handleHealth } from "@/routes/health";
+import { handleLibraryBrowse, handleLibrarySearch, handleLibrarySources } from "@/routes/library";
+import { MEDIA_PREFIX, MEDIA_UPLOAD_PREFIX, handleMedia, handleMediaUpload } from "@/routes/media";
 import { handleRoot } from "@/routes/root";
 import { handleStats } from "@/routes/stats";
 import { handleGetPresignedURL, handleUploadComplete } from "@/routes/upload";
 import { handleWebSocketUpgrade } from "@/routes/websocket";
 import { handleClose, handleMessage, handleOpen } from "@/routes/websocketHandlers";
+import { LOCAL_UPLOAD_MAX_BYTES } from "@/storage/local";
 import { corsHeaders, errorResponse } from "@/utils/responses";
 import type { WSData } from "@/utils/websocket";
 
@@ -17,6 +21,8 @@ import type { WSData } from "@/utils/websocket";
 const server = Bun.serve<WSData>({
   hostname: "0.0.0.0",
   port: 8080,
+  // Local-storage uploads (PUT /media-upload) accept up to 200 MB; Bun's default cap is 128 MB
+  maxRequestBodySize: LOCAL_UPLOAD_MAX_BYTES + 1024 * 1024,
   async fetch(req, server) {
     const start = performance.now();
     const url = new URL(req.url);
@@ -32,6 +38,13 @@ const server = Bun.serve<WSData>({
       // Demo mode: serve local audio files
       if (IS_DEMO_MODE && url.pathname.startsWith("/audio/")) {
         response = handleServeAudio(url.pathname);
+      } else if (url.pathname.startsWith(MEDIA_PREFIX)) {
+        // Local storage mode: serve room media (404 when R2 is in use)
+        response = await handleMedia(req, url);
+      } else if (url.pathname.startsWith(MEDIA_UPLOAD_PREFIX)) {
+        response = IS_DEMO_MODE
+          ? errorResponse("Uploads disabled in demo mode", 403)
+          : await handleMediaUpload(req, url);
       } else {
         switch (url.pathname) {
           case "/":
@@ -71,6 +84,22 @@ const server = Bun.serve<WSData>({
 
           case "/discover":
             response = handleDiscover(req);
+            break;
+
+          case "/library/sources":
+            response = IS_DEMO_MODE ? errorResponse("Library disabled in demo mode", 403) : handleLibrarySources(req);
+            break;
+
+          case "/library/search":
+            response = IS_DEMO_MODE
+              ? errorResponse("Library disabled in demo mode", 403)
+              : await handleLibrarySearch(req, url);
+            break;
+
+          case "/library/browse":
+            response = IS_DEMO_MODE
+              ? errorResponse("Library disabled in demo mode", 403)
+              : await handleLibraryBrowse(req, url);
             break;
 
           case "/health":
@@ -118,7 +147,10 @@ if (IS_DEMO_MODE) {
   console.log(`🔑 Admin secret: ${ADMIN_SECRET}`);
 }
 
-if (!IS_DEMO_MODE) {
+// State backups live in R2; with local media storage (dev without R2) there is nowhere to back up to
+const BACKUPS_ENABLED = !IS_DEMO_MODE && getStorage().kind === "r2";
+
+if (BACKUPS_ENABLED) {
   // Restore state from backup on startup
   BackupManager.restoreState().catch((error) => {
     console.error("Failed to restore state on startup:", error);
@@ -139,7 +171,7 @@ const shutdown = async () => {
   console.log("\n⚠️ Shutting down...");
 
   void server.stop(); // Stop accepting new connections
-  if (!IS_DEMO_MODE) {
+  if (BACKUPS_ENABLED) {
     await BackupManager.backupState(); // Save state
   }
 

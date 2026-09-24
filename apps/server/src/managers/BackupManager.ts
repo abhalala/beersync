@@ -61,6 +61,16 @@ export class BackupManager {
       // Paused/idle rooms with a missing or unset track lose nothing — stay silent
       // so restore logs don't overstate damage after a deploy.
 
+      // Restore DJ decks + mixer, ejecting any deck whose track didn't survive validation
+      if (roomData.dj) {
+        room.getDj().restore(roomData.dj);
+        const validUrls = new Set(validAudioSources.map((source) => source.url));
+        const missing = roomData.dj.decks
+          .map((deck) => deck.trackUrl)
+          .filter((url): url is string => !!url && !validUrls.has(url));
+        room.getDj().ejectTracks(missing);
+      }
+
       // Restore chat history if it exists (for backward compatibility with old backups)
       if (roomData.chat) {
         room.restoreChatHistory(roomData.chat);

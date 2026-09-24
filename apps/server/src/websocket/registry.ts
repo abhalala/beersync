@@ -22,6 +22,14 @@ import { handleReorderAudioSources } from "@/websocket/handlers/handleReorderAud
 import { handleSetMetronome } from "@/websocket/handlers/setMetronome";
 import { handleSetLowPassFreq } from "@/websocket/handlers/setLowPassFreq";
 import { handleSync } from "@/websocket/handlers/sync";
+import { handleDjClaimDeck } from "@/websocket/handlers/djClaimDeck";
+import { handleDjDeckCommand } from "@/websocket/handlers/djDeckCommand";
+import { handleDjImportTrack } from "@/websocket/handlers/djImportTrack";
+import { handleDjMixerUpdate } from "@/websocket/handlers/djMixerUpdate";
+import { handleDjTrackAnalysis } from "@/websocket/handlers/djTrackAnalysis";
+import { handlePassBeer } from "@/websocket/handlers/passBeer";
+import { handleRequestBeer } from "@/websocket/handlers/requestBeer";
+import { handleSendReaction } from "@/websocket/handlers/sendReaction";
 import type { WebsocketRegistry } from "@/websocket/types";
 
 export const WS_REGISTRY: WebsocketRegistry = {
@@ -132,5 +140,37 @@ export const WS_REGISTRY: WebsocketRegistry = {
   [ClientActionEnum.enum.LIVENESS_PONG]: {
     handle: handleLivenessPong,
     description: "Liveness reply to a server LIVENESS_PING",
+  },
+  [ClientActionEnum.enum.DJ_DECK_COMMAND]: {
+    handle: handleDjDeckCommand,
+    description: "Apply a transport/cue/loop/tempo command to a DJ deck",
+  },
+  [ClientActionEnum.enum.DJ_MIXER_UPDATE]: {
+    handle: handleDjMixerUpdate,
+    description: "Apply a partial mixer change",
+  },
+  [ClientActionEnum.enum.DJ_TRACK_ANALYSIS]: {
+    handle: handleDjTrackAnalysis,
+    description: "Record a track's beat grid / key / duration for the room",
+  },
+  [ClientActionEnum.enum.DJ_CLAIM_DECK]: {
+    handle: handleDjClaimDeck,
+    description: "Claim or release exclusive control of a deck",
+  },
+  [ClientActionEnum.enum.DJ_IMPORT_TRACK]: {
+    handle: handleDjImportTrack,
+    description: "Import a library track into the room collection",
+  },
+  [ClientActionEnum.enum.PASS_BEER]: {
+    handle: handlePassBeer,
+    description: "Give or take back deck access (a beer)",
+  },
+  [ClientActionEnum.enum.REQUEST_BEER]: {
+    handle: handleRequestBeer,
+    description: "Ask the beer holders for deck access",
+  },
+  [ClientActionEnum.enum.SEND_REACTION]: {
+    handle: handleSendReaction,
+    description: "Broadcast an emoji reaction to the sesh",
   },
 };

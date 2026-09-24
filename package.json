@@ -1,5 +1,5 @@
 {
-  "name": "beatsync",
+  "name": "beersync",
   "packageManager": "bun@1.3.8",
   "scripts": {
     "build": "turbo run build",

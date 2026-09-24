@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CHAT_CONSTANTS, LOW_PASS_CONSTANTS } from "../constants";
 import { AudioSourceSchema, PositionSchema } from "./basic";
+import { DeckCommandSchema, DeckIdSchema, LibraryTrackSchema, MixerPatchSchema, TrackAnalysisSchema } from "./dj";
 
 // ROOM EVENTS
 export const LocationSchema = z.object({
@@ -36,7 +37,19 @@ export const ClientActionEnum = z.enum([
   "SET_METRONOME", // Toggle metronome on/off for all clients
   "SET_LOW_PASS_FREQ", // Set low-pass filter cutoff frequency
   "LIVENESS_PONG", // Liveness reply to a server LIVENESS_PING
+  "DJ_DECK_COMMAND", // Transport/cue/loop/tempo command for one deck
+  "DJ_MIXER_UPDATE", // Partial mixer change (EQ, filter, faders, crossfader)
+  "DJ_TRACK_ANALYSIS", // Share a track's beat grid / key / duration with the room
+  "DJ_CLAIM_DECK", // Claim or release exclusive control of a deck
+  "DJ_IMPORT_TRACK", // Pull a track from a library source into the room collection
+  "PASS_BEER", // Give someone deck access (a beer), or take it back
+  "REQUEST_BEER", // Listener asks the beer holders for deck access
+  "SEND_REACTION", // Ephemeral emoji reaction shown to the whole sesh
 ]);
+
+export const REACTION_EMOJIS = ["🍻", "🔥", "🙌", "💃", "🤯", "❤️"] as const;
+export const ReactionEmojiSchema = z.enum(REACTION_EMOJIS);
+export type ReactionEmoji = z.infer<typeof ReactionEmojiSchema>;
 
 export const NTPRequestPacketSchema = z.object({
   type: z.literal(ClientActionEnum.enum.NTP_REQUEST),
@@ -166,6 +179,52 @@ export const LivenessPongSchema = z.object({
   type: z.literal(ClientActionEnum.enum.LIVENESS_PONG),
 });
 
+export const DjDeckCommandSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DJ_DECK_COMMAND),
+  deckId: DeckIdSchema,
+  command: DeckCommandSchema,
+});
+
+export const DjMixerUpdateSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DJ_MIXER_UPDATE),
+  patch: MixerPatchSchema,
+});
+
+export const DjTrackAnalysisSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DJ_TRACK_ANALYSIS),
+  url: z.string(),
+  analysis: TrackAnalysisSchema,
+});
+
+export const DjClaimDeckSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DJ_CLAIM_DECK),
+  deckId: DeckIdSchema,
+  claim: z.boolean(),
+});
+
+export const DjImportTrackSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.DJ_IMPORT_TRACK),
+  track: LibraryTrackSchema,
+  /** Load onto this deck once the track is in the collection */
+  loadToDeck: DeckIdSchema.optional(),
+});
+
+export const PassBeerSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.PASS_BEER),
+  clientId: z.string(),
+  holding: z.boolean(),
+});
+
+export const RequestBeerSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.REQUEST_BEER),
+  wants: z.boolean(),
+});
+
+export const SendReactionSchema = z.object({
+  type: z.literal(ClientActionEnum.enum.SEND_REACTION),
+  emoji: ReactionEmojiSchema,
+});
+
 export const WSRequestSchema = z.discriminatedUnion("type", [
   PlayActionSchema,
   PauseActionSchema,
@@ -190,6 +249,14 @@ export const WSRequestSchema = z.discriminatedUnion("type", [
   SetMetronomeSchema,
   SetLowPassFreqSchema,
   LivenessPongSchema,
+  DjDeckCommandSchema,
+  DjMixerUpdateSchema,
+  DjTrackAnalysisSchema,
+  DjClaimDeckSchema,
+  DjImportTrackSchema,
+  PassBeerSchema,
+  RequestBeerSchema,
+  SendReactionSchema,
 ]);
 export type WSRequestType = z.infer<typeof WSRequestSchema>;
 export type PlayActionType = z.infer<typeof PlayActionSchema>;

@@ -1,5 +1,6 @@
 import type { WSBroadcastType } from "@beatsync/shared";
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { describe, expect, it, beforeEach, type Mock } from "bun:test";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { handleOpen } from "@/routes/websocketHandlers";
 import { globalManager } from "@/managers/GlobalManager";
@@ -7,27 +8,16 @@ import type { BunServer } from "@/utils/websocket";
 
 let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcastType }[] = [];
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(
-    ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
-      broadcastMessages.push({ server, roomId, message });
-    }
-  ),
-  sendToClient: mock(({ ws, message }: { ws: ReturnType<typeof createMockWs>; message: WSBroadcastType }) => {
-    ws.send(JSON.stringify(message));
-  }),
-  sendUnicast: mock(() => {
-    /* noop */
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+mockResponses({
+  sendBroadcast: ({ server, roomId, message }) => {
+    broadcastMessages.push({ server, roomId, message });
+  },
+});
 
 /** Extract parsed messages sent directly via ws.send() */
 function getWsSentMessages(ws: ReturnType<typeof createMockWs>): WSBroadcastType[] {
   // eslint-disable-next-line @typescript-eslint/unbound-method -- mock fn, no real `this`
-  const sendMock = ws.send as ReturnType<typeof mock>;
+  const sendMock = ws.send as unknown as Mock<(data: string) => number>;
   return sendMock.mock.calls.map((call: unknown[]) => JSON.parse(call[0] as string) as WSBroadcastType);
 }
 

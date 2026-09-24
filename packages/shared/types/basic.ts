@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHAT_CONSTANTS } from "../constants";
+import { TrackMetaSchema } from "./dj";
 
 export const GRID = {
   SIZE: 100,
@@ -16,6 +17,8 @@ export type PositionType = z.infer<typeof PositionSchema>;
 
 export const AudioSourceSchema = z.object({
   url: z.string(),
+  /** Optional track metadata (title/artist/analysis). Tracks without it still play. */
+  meta: TrackMetaSchema.optional(),
 });
 export type AudioSourceType = z.infer<typeof AudioSourceSchema>;
 

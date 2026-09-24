@@ -3,8 +3,9 @@
 
 import type { WSUnicastType } from "@beatsync/shared";
 import { NTP_CONSTANTS } from "@beatsync/shared";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, type Mock } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { handleMessage, handleOpen } from "@/routes/websocketHandlers";
 import { globalManager } from "@/managers/GlobalManager";
@@ -14,24 +15,18 @@ mockR2();
 
 let unicastMessages: WSUnicastType[] = [];
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(() => {
-    /* noop */
-  }),
-  sendUnicast: mock(({ message }: { message: WSUnicastType }) => {
+mockResponses({
+  sendUnicast: ({ message }) => {
     unicastMessages.push(message);
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+  },
+});
 
 const ROOM_ID = "probe-test-room";
 
 /** Extract parsed NTP_RESPONSE messages sent directly via ws.send (fast path) */
 function getNtpResponsesFromWs(ws: ReturnType<typeof createMockWs>) {
   // eslint-disable-next-line @typescript-eslint/unbound-method
-  const sendMock = ws.send as ReturnType<typeof mock>;
+  const sendMock = ws.send as unknown as Mock<(data: string) => number>;
   return sendMock.mock.calls
     .map((call) => JSON.parse(String(call[0])) as Record<string, unknown>)
     .filter((m) => m.type === "NTP_RESPONSE");

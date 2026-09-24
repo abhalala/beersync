@@ -1,24 +1,15 @@
 // Tests GlobalManager.getActiveRooms() filtering: rooms must have active connections,
 // be playing, and have a valid track. Also tests sorting by client count and the 50-room cap.
 
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockWs } from "@/__tests__/mocks/websocket";
 import { GlobalManager } from "@/managers/GlobalManager";
 
 mockR2();
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(() => {
-    /* noop */
-  }),
-  sendUnicast: mock(() => {
-    /* noop */
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+mockResponses();
 
 const AUDIO_URL = "https://example.com/song.mp3";
 

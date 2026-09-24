@@ -3,6 +3,8 @@
 @plugin "tailwindcss-animate";
 
 @import "../components/room/scrollbar.css";
+@import "./neu.css";
+@import "./console.css";
 
 @custom-variant dark (&:is(.dark *));
 

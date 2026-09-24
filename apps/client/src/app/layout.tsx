@@ -5,7 +5,7 @@ import { IS_DEMO_MODE } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Chakra_Petch, Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,21 +18,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Display face for console labels and readouts (mixer-silkscreen feel)
+const chakraPetch = Chakra_Petch({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+});
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Beatsync",
+  metadataBase: new URL("https://beersync.fm"),
+  title: "Beersync",
   description:
-    "Turn every device into a synchronized speaker. Beatsync is an open-source music player for multi-device audio playback. Host a listening party today!",
-  keywords: ["music", "sync", "audio", "collaboration", "real-time"],
+    "Co-DJ in the browser. Beersync is a multiplayer DJ console where everyone mixes the same decks and every device plays the mix in sync.",
+  keywords: ["dj", "music", "sync", "audio", "collaboration", "real-time", "rekordbox", "b2b"],
   authors: [{ name: "Freeman Jiang" }],
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Beatsync",
+    title: "Beersync",
   },
 };
 
@@ -44,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           geistSans.variable,
           geistMono.variable,
           inter.variable,
+          chakraPetch.variable,
           "antialiased font-sans selection:bg-primary-800 selection:text-white"
         )}
       >

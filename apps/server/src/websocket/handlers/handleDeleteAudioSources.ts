@@ -1,6 +1,7 @@
 import { IS_DEMO_MODE } from "@/demo";
 import { deleteObject, extractKeyFromUrl } from "@/lib/r2";
 import { sendBroadcast } from "@/utils/responses";
+import { broadcastDeck } from "@/websocket/handlers/dj";
 import { requireCanMutate } from "@/websocket/middlewares";
 import type { HandlerFunction } from "@/websocket/types";
 import type { ExtractWSRequestFrom } from "@beatsync/shared";
@@ -24,7 +25,8 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
 
   // In demo mode, skip R2 deletion — just remove from room state
   if (IS_DEMO_MODE) {
-    const { updated } = room.removeAudioSources(urlsToDelete);
+    const { updated, ejectedDecks } = room.removeAudioSources(urlsToDelete);
+    ejectedDecks.forEach((deck) => broadcastDeck(server, ws.data.roomId, deck));
     sendBroadcast({
       server,
       roomId: ws.data.roomId,
@@ -78,7 +80,8 @@ export const handleDeleteAudioSources: HandlerFunction<ExtractWSRequestFrom["DEL
   }
 
   // Remove only the successfully deleted sources from room state
-  const { updated } = room.removeAudioSources(urlsToRemove);
+  const { updated, ejectedDecks } = room.removeAudioSources(urlsToRemove);
+  ejectedDecks.forEach((deck) => broadcastDeck(server, ws.data.roomId, deck));
 
   // Broadcast updated queue to all clients
   sendBroadcast({

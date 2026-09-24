@@ -1,4 +1,5 @@
 import { IS_DEMO_MODE } from "@/demo";
+import { SERVER_BOOT_ID } from "@/lib/bootId";
 import { globalManager } from "@/managers";
 import { sendBroadcast, sendToClient, sendUnicast } from "@/utils/responses";
 import type { BunServer, WSData } from "@/utils/websocket";
@@ -117,6 +118,14 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
+  // Full DJ console state (decks carry their own timeline anchors, so a late
+  // joiner can start each deck at the right position without a separate SYNC).
+  // bootId lets a reconnecting client keep its clock offset if this process didn't restart.
+  sendToClient({
+    ws,
+    message: { type: "ROOM_EVENT", event: { type: "DJ_STATE", ...room.getDj().getState(), bootId: SERVER_BOOT_ID } },
+  });
+
   const messages = room.getFullChatHistory();
   if (messages.length > 0) {
     sendToClient({
@@ -210,7 +219,10 @@ export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string
     }
 
     const parsedMessage = WSRequestSchema.parse(parsedData);
-    console.log(`[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`);
+    // Mixer drags arrive ~20x/s per DJ; logging each would drown the log
+    if (parsedMessage.type !== "DJ_MIXER_UPDATE") {
+      console.log(`[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`);
+    }
 
     // Delegate to type-safe dispatcher
     await dispatchMessage({ ws, message: parsedMessage, server });

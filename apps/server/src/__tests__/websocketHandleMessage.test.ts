@@ -2,8 +2,9 @@
 // dispatch to handlers, and error handling for malformed messages.
 
 import type { WSBroadcastType } from "@beatsync/shared";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, type Mock } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { handleMessage, handleOpen } from "@/routes/websocketHandlers";
 import { globalManager } from "@/managers/GlobalManager";
@@ -13,19 +14,11 @@ let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcast
 
 mockR2();
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(
-    ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
-      broadcastMessages.push({ server, roomId, message });
-    }
-  ),
-  sendUnicast: mock(() => {
-    /* noop */
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+mockResponses({
+  sendBroadcast: ({ server, roomId, message }) => {
+    broadcastMessages.push({ server, roomId, message });
+  },
+});
 
 const ROOM_ID = "msg-test-room";
 const AUDIO_URL = "https://example.com/song.mp3";
@@ -48,7 +41,7 @@ describe("handleMessage", () => {
     await handleMessage(ws, "not json at all{{{", server);
 
     // ws.send should have been called with an error message
-    const sendCalls = (ws.send as ReturnType<typeof mock>).mock.calls;
+    const sendCalls = (ws.send as unknown as Mock<(data: string) => number>).mock.calls;
     const lastMessage = JSON.parse(String(sendCalls[sendCalls.length - 1][0])) as { type: string };
     expect(lastMessage.type).toBe("ERROR");
   });
@@ -59,7 +52,7 @@ describe("handleMessage", () => {
 
     await handleMessage(ws, JSON.stringify({ type: "NONEXISTENT_ACTION" }), server);
 
-    const sendCalls = (ws.send as ReturnType<typeof mock>).mock.calls;
+    const sendCalls = (ws.send as unknown as Mock<(data: string) => number>).mock.calls;
     const lastMessage = JSON.parse(String(sendCalls[sendCalls.length - 1][0])) as { type: string };
     expect(lastMessage.type).toBe("ERROR");
   });

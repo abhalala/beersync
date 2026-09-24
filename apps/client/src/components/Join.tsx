@@ -56,7 +56,7 @@ export const Join = () => {
     setIsJoining(true);
     // Validate roomId
     if (!validateFullRoomId(data.roomId)) {
-      toast.error("Invalid room code. Please enter 6 digits.");
+      toast.error("Invalid sesh code. Please enter 6 digits.");
       setIsJoining(false);
       return;
     }
@@ -104,7 +104,7 @@ export const Join = () => {
                 <motion.div className="absolute size-2.5 bg-green-500/30 rounded-full animate-ping" />
               </motion.div>
               <span className="text-xs text-neutral-500 ml-0.5">
-                {numActiveUsers} {numActiveUsers === 1 ? "person" : "people"} listening now
+                {numActiveUsers} {numActiveUsers === 1 ? "person" : "people"} in a sesh now
               </span>
             </motion.div>
           ) : null}
@@ -114,7 +114,7 @@ export const Join = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.13 }}
           >
-            Join a Beatsync Room
+            Join a sesh
           </motion.h2>
 
           <motion.p
@@ -123,7 +123,7 @@ export const Join = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.15 }}
           >
-            Enter a room code to join or create a new room
+            Enter a sesh code to join, or start a new sesh and pass out the beers
           </motion.p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="w-full">
@@ -136,7 +136,7 @@ export const Join = () => {
               <Controller
                 control={control}
                 name="roomId"
-                rules={{ required: "Room code is required" }}
+                rules={{ required: "Sesh code is required" }}
                 render={({ field }) => (
                   <InputOTP
                     autoFocus
@@ -258,7 +258,7 @@ export const Join = () => {
                 ) : (
                   <PlusCircle size={16} className="mr-2" />
                 )}
-                <span>{isCreating ? "Creating..." : "Create new room"}</span>
+                <span>{isCreating ? "Creating..." : "Start a new sesh"}</span>
               </motion.button>
 
               {/* <motion.button
@@ -286,7 +286,7 @@ export const Join = () => {
                   ) : (
                     <PlusCircle size={16} className="mr-2" />
                   )}
-                  <span>{isCreating ? "Creating..." : "Create new room"}</span>
+                  <span>{isCreating ? "Creating..." : "Start a new sesh"}</span>
                 </motion.button> */}
             </div>
           </form>

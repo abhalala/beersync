@@ -1,7 +1,8 @@
 import { calculateScheduleTimeMs, DEFAULT_CLIENT_RTT_MS } from "@/config";
 import { IS_DEMO_MODE } from "@/demo";
-import { deleteObjectsWithPrefix } from "@/lib/r2";
 import { ChatManager } from "@/managers/ChatManager";
+import { deleteRoomMedia } from "@/storage";
+import { DeckManager } from "@/managers/DeckManager";
 import { calculateGainFromDistanceToSource } from "@/spatial";
 import { debounce } from "@/utils/debounce";
 import { sendBroadcast, sendUnicast } from "@/utils/responses";
@@ -18,9 +19,18 @@ import type {
   PlaybackControlsPermissionsType,
   PositionType,
   RoomType,
+  TrackAnalysis,
+  TrackMeta,
   WSBroadcastType,
 } from "@beatsync/shared";
-import { ChatMessageSchema, ClientDataSchema, epochNow, LOW_PASS_CONSTANTS, NTP_CONSTANTS } from "@beatsync/shared";
+import {
+  ChatMessageSchema,
+  ClientDataSchema,
+  DjStateSchema,
+  epochNow,
+  LOW_PASS_CONSTANTS,
+  NTP_CONSTANTS,
+} from "@beatsync/shared";
 import { AudioSourceSchema, GRID } from "@beatsync/shared/types/basic";
 import type { SendLocationSchema } from "@beatsync/shared/types/WSRequest";
 import type { ServerWebSocket } from "bun";
@@ -63,6 +73,7 @@ const RoomBackupSchema = z.object({
       nextMessageId: z.number(),
     })
     .optional(),
+  dj: DjStateSchema.optional(),
 });
 export type RoomBackupType = z.infer<typeof RoomBackupSchema>;
 
@@ -126,6 +137,7 @@ export class RoomManager {
   // Map of trackId to job status
   private activeStreamJobs = new Map<string, { status: string }>();
   private chatManager: ChatManager;
+  private deckManager = new DeckManager();
   private serverRef?: BunServer;
 
   // Audio loading state for synchronized playback
@@ -313,6 +325,38 @@ export class RoomManager {
     return this.playbackState;
   }
 
+  /** Shared DJ decks + mixer for this room */
+  getDj(): DeckManager {
+    return this.deckManager;
+  }
+
+  /** Metadata for a track in the collection ({} if it has none), or undefined if it isn't in the room */
+  getTrackMeta(url: string): TrackMeta | undefined {
+    const source = this.audioSources.find((s) => s.url === url);
+    return source ? (source.meta ?? {}) : undefined;
+  }
+
+  /**
+   * Record a client's analysis of a track. The first beat grid wins so every
+   * device uses the same grid for SYNC/quantize; later reports only fill gaps.
+   * Returns true if the collection changed.
+   */
+  setTrackAnalysis(url: string, analysis: TrackAnalysis): boolean {
+    const index = this.audioSources.findIndex((s) => s.url === url);
+    if (index === -1) return false;
+    const meta = this.audioSources[index].meta ?? {};
+    const hasGrid = meta.firstBeatSec !== undefined && meta.bpm !== undefined;
+    const next: TrackMeta = {
+      ...meta,
+      ...(hasGrid ? {} : { bpm: analysis.bpm, firstBeatSec: analysis.firstBeatSec }),
+      key: meta.key ?? analysis.key,
+      durationSec: meta.durationSec ?? analysis.durationSec,
+    };
+    if (JSON.stringify(next) === JSON.stringify(meta)) return false;
+    this.audioSources = this.audioSources.map((s, i) => (i === index ? { ...s, meta: next } : s));
+    return true;
+  }
+
   /**
    * Add a client to the room
    */
@@ -329,6 +373,8 @@ export class RoomManager {
       clientId,
       isAdmin: false,
       isCreator: ws.data.isCreator,
+      isBeerHolder: false,
+      wantsBeer: false,
       rtt: 0,
       compensationMs: 0,
       nudgeMs: 0,
@@ -348,12 +394,16 @@ export class RoomManager {
       if (!IS_DEMO_MODE) clientData.isAdmin = cachedClient.isAdmin;
       clientData.joinedAt = cachedClient.joinedAt;
       clientData.nudgeMs = cachedClient.nudgeMs;
+      clientData.isBeerHolder = cachedClient.isBeerHolder;
     }
 
     // In demo mode, only the admin secret grants admin. Otherwise, first client gets admin.
     if (!IS_DEMO_MODE && this.wsConnections.size === 0) {
       clientData.isAdmin = true;
     }
+
+    // The sesh host always starts holding a beer (deck access)
+    if (clientData.isAdmin) clientData.isBeerHolder = true;
 
     // If the client authenticated with the admin secret or is the creator, always grant admin
     if (ws.data.isAdmin || ws.data.isCreator) {
@@ -434,6 +484,63 @@ export class RoomManager {
     this.clientData.set(targetClientId, client);
   }
 
+  /**
+   * Beersync roles: beer holders may use the decks. Admins (sesh hosts) always
+   * can, and "everyone" playback permission means an open bar.
+   */
+  canDj(clientId: string): boolean {
+    const client = this.clientData.get(clientId);
+    if (!client) return false;
+    return client.isAdmin || client.isBeerHolder || this.playbackControlsPermissions === "EVERYONE";
+  }
+
+  /**
+   * Hand a beer to someone (holders and admins can), or take one back (admins,
+   * or the holder putting their own down). Returns an error message if refused.
+   */
+  passBeer({
+    fromClientId,
+    targetClientId,
+    holding,
+  }: {
+    fromClientId: string;
+    targetClientId: string;
+    holding: boolean;
+  }): string | null {
+    const from = this.clientData.get(fromClientId);
+    const target = this.clientData.get(targetClientId);
+    if (!from || !target) return "That person isn't in this sesh anymore";
+    if (holding) {
+      if (!from.isAdmin && !from.isBeerHolder) return "Only beer holders can pass a beer";
+    } else if (!from.isAdmin && fromClientId !== targetClientId) {
+      return "Only the sesh host can take someone's beer";
+    }
+    target.isBeerHolder = holding;
+    if (holding) target.wantsBeer = false;
+    return null;
+  }
+
+  setWantsBeer(clientId: string, wants: boolean): void {
+    const client = this.clientData.get(clientId);
+    if (!client) return;
+    client.wantsBeer = wants && !this.canDj(clientId);
+  }
+
+  /** Open socket for a connected client (for direct notices) */
+  getClientSocket(clientId: string): ServerWebSocket<WSData> | undefined {
+    return this.wsConnections.get(clientId);
+  }
+
+  private lastReactionAt = new Map<string, number>();
+
+  /** Rate-limit reactions to a few per second per person */
+  allowReaction(clientId: string, now = Date.now()): boolean {
+    const last = this.lastReactionAt.get(clientId) ?? 0;
+    if (now - last < 250) return false;
+    this.lastReactionAt.set(clientId, now);
+    return true;
+  }
+
   setPlaybackControls(permissions: z.infer<typeof PlaybackControlsPermissionsEnum>): void {
     this.playbackControlsPermissions = permissions;
   }
@@ -456,6 +563,7 @@ export class RoomManager {
     updated: AudioSourceType[];
     removedCurrent: boolean;
     removedUrl?: string;
+    ejectedDecks: ReturnType<DeckManager["ejectTracks"]>;
   } {
     const before = this.audioSources.length;
     const urlSet = new Set(urls);
@@ -481,6 +589,7 @@ export class RoomManager {
       updated: this.audioSources,
       removedCurrent: removingCurrent,
       removedUrl,
+      ejectedDecks: this.deckManager.ejectTracks(urls),
     };
   }
 
@@ -993,6 +1102,7 @@ export class RoomManager {
         messages: this.chatManager.getFullHistory(),
         nextMessageId: this.chatManager.getNextMessageId(),
       },
+      dj: this.deckManager.getState(),
     };
   }
 
@@ -1051,8 +1161,8 @@ export class RoomManager {
 
     if (!IS_DEMO_MODE) {
       try {
-        const result = await deleteObjectsWithPrefix(`room-${this.roomId}`);
-        console.log(`✅ Room ${this.roomId} objects deleted: ${result.deletedCount}`);
+        const deletedCount = await deleteRoomMedia(this.roomId);
+        console.log(`✅ Room ${this.roomId} objects deleted: ${deletedCount}`);
       } catch (error) {
         console.error(`❌ Room ${this.roomId} cleanup failed:`, error);
       }

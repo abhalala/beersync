@@ -1,7 +1,10 @@
 import { useChatStore } from "@/store/chat";
+import { useDjStore } from "@/store/dj";
+import { useSeshStore } from "@/store/sesh";
 import { useGlobalStore } from "@/store/global";
 import { getProbeStats, handleNTPResponse } from "@/utils/ntp";
 import { sendWSRequest } from "@/utils/ws";
+import { toast } from "sonner";
 import { ClientActionEnum, ServerActionEnum, type ExtractWSResponseFrom } from "@beatsync/shared";
 import type { WebsocketResponseRegistry } from "@/websocket/types";
 
@@ -25,6 +28,18 @@ const ROOM_EVENT_REGISTRY: {
   },
   LOAD_AUDIO_SOURCE: (event) => {
     useGlobalStore.getState().handleLoadAudioSource(event);
+  },
+  DJ_STATE: (event) => {
+    useDjStore.getState().applyDjState(event);
+  },
+  DJ_DECK_STATE: (event) => {
+    useDjStore.getState().applyDeckState(event.deck);
+  },
+  DJ_MIXER_STATE: (event) => {
+    useDjStore.getState().applyMixerState(event.mixer);
+  },
+  REACTION: (event) => {
+    useSeshStore.getState().addReaction(event);
   },
 };
 
@@ -96,7 +111,8 @@ export const WS_RESPONSE_REGISTRY: WebsocketResponseRegistry = {
   [ServerActionEnum.enum.ROOM_EVENT]: {
     handle: ({ response }) => {
       const { event } = response;
-      console.log("Room event:", event);
+      // DJ snapshots arrive many times a second while someone drags a fader
+      if (!event.type.startsWith("DJ_") && event.type !== "REACTION") console.log("Room event:", event);
 
       const handler = ROOM_EVENT_REGISTRY[event.type];
       // Same limitation as the top-level dispatcher: TypeScript cannot correlate
@@ -145,6 +161,14 @@ export const WS_RESPONSE_REGISTRY: WebsocketResponseRegistry = {
       }
     },
     description: "Music search results",
+  },
+
+  [ServerActionEnum.enum.DJ_NOTICE]: {
+    handle: ({ response }) => {
+      if (response.level === "error") toast.error(response.message, { id: "dj-notice" });
+      else toast(response.message, { id: "dj-notice" });
+    },
+    description: "Feedback for a DJ command (refusals, hints)",
   },
 
   [ServerActionEnum.enum.STREAM_JOB_UPDATE]: {

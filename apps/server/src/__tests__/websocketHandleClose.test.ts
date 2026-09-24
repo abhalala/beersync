@@ -2,9 +2,10 @@
 // and room cleanup scheduling when the last client leaves.
 
 import type { WSBroadcastType } from "@beatsync/shared";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import sinon from "sinon";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockServer, createMockWs } from "@/__tests__/mocks/websocket";
 import { handleClose, handleOpen } from "@/routes/websocketHandlers";
 import { globalManager } from "@/managers/GlobalManager";
@@ -14,22 +15,11 @@ let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcast
 
 mockR2();
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(
-    ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
-      broadcastMessages.push({ server, roomId, message });
-    }
-  ),
-  sendToClient: mock(() => {
-    /* noop */
-  }),
-  sendUnicast: mock(() => {
-    /* noop */
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+mockResponses({
+  sendBroadcast: ({ server, roomId, message }) => {
+    broadcastMessages.push({ server, roomId, message });
+  },
+});
 
 const ROOM_ID = "close-test-room";
 

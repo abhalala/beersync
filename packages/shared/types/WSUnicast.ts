@@ -26,10 +26,19 @@ const LivenessPingMessageSchema = z.object({
   type: z.literal(ServerActionEnum.enum.LIVENESS_PING),
 });
 
+// Feedback to the client that issued a DJ command (refusals, hints)
+export const DjNoticeSchema = z.object({
+  type: z.literal(ServerActionEnum.enum.DJ_NOTICE),
+  level: z.enum(["info", "error"]),
+  message: z.string(),
+});
+export type DjNoticeType = z.infer<typeof DjNoticeSchema>;
+
 export const WSUnicastSchema = z.discriminatedUnion("type", [
   NTPResponseMessageSchema,
   ScheduledActionSchema,
   MusicSearchResponseSchema,
   LivenessPingMessageSchema,
+  DjNoticeSchema,
 ]);
 export type WSUnicastType = z.infer<typeof WSUnicastSchema>;
