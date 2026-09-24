@@ -3,8 +3,9 @@
 
 import type { WSBroadcastType, WSUnicastType } from "@beatsync/shared";
 import type { ServerWebSocket } from "bun";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mockR2 } from "@/__tests__/mocks/r2";
+import { mockResponses } from "@/__tests__/mocks/responses";
 import { createMockWs } from "@/__tests__/mocks/websocket";
 import { RoomManager } from "@/managers/RoomManager";
 import type { BunServer, WSData } from "@/utils/websocket";
@@ -14,19 +15,14 @@ let broadcastMessages: { server: BunServer; roomId: string; message: WSBroadcast
 
 mockR2();
 
-void mock.module("@/utils/responses", () => ({
-  sendBroadcast: mock(
-    ({ server, roomId, message }: { server: BunServer; roomId: string; message: WSBroadcastType }) => {
-      broadcastMessages.push({ server, roomId, message });
-    }
-  ),
-  sendUnicast: mock(({ ws, message }: { ws: ServerWebSocket<WSData>; message: WSUnicastType }) => {
+mockResponses({
+  sendBroadcast: ({ server, roomId, message }) => {
+    broadcastMessages.push({ server, roomId, message });
+  },
+  sendUnicast: ({ ws, message }) => {
     unicastMessages.push({ ws, message });
-  }),
-  corsHeaders: {},
-  jsonResponse: mock(() => new Response()),
-  errorResponse: mock(() => new Response()),
-}));
+  },
+});
 
 const ROOM_ID = "test-room";
 const AUDIO_URL = "https://example.com/song.mp3";
