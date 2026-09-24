@@ -3,6 +3,8 @@ import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { useDjStore } from "@/store/dj";
 import { cn } from "@/lib/utils";
 import { ControllerButton } from "./ControllerButton";
+import { LayoutButton } from "./layouts/LayoutButton";
+import type { LayoutId } from "./layouts/types";
 import { Check, Copy, Crown, Headphones, Moon, PartyPopper, SlidersHorizontal, Sun, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -16,6 +18,9 @@ interface ConsoleTopBarProps {
   /** Beer holders can flip between the decks and the listener view */
   view?: "decks" | "listener";
   onToggleView?: () => void;
+  /** Desktop layout preset (per device) */
+  layout?: LayoutId;
+  onLayoutChange?: (layout: LayoutId) => void;
 }
 
 export const ConsoleTopBar = ({
@@ -26,6 +31,8 @@ export const ConsoleTopBar = ({
   crewOpen,
   view,
   onToggleView,
+  layout,
+  onLayoutChange,
 }: ConsoleTopBarProps) => {
   const isSynced = useGlobalStore((s) => s.isSynced);
   // Lost sync after audio started (reconnect mid-set): the console stays up
@@ -99,6 +106,7 @@ export const ConsoleTopBar = ({
 
       <div className="ml-auto flex items-center gap-2">
         {currentUser?.isAdmin && <Crown className="size-4 text-[var(--neu-warn)]" aria-label="You are the sesh host" />}
+        {view === "decks" && layout && onLayoutChange && <LayoutButton layout={layout} onChange={onLayoutChange} />}
         {view === "decks" && <ControllerButton />}
         {view && (
           <button

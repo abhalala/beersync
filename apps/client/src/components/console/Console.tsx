@@ -13,6 +13,8 @@ import { Deck } from "./Deck";
 import { Library } from "./Library";
 import { ListenerView, ReactionBar, ReactionOverlay } from "./ListenerView";
 import { Mixer } from "./Mixer";
+import { ConsoleLayout } from "./layouts/ConsoleLayout";
+import { useLayoutPreference } from "./layouts/useLayoutPreference";
 import { SeshMinimap } from "./SeshMinimap";
 import { useDeckShortcuts } from "./useDeckShortcuts";
 import { useNeuTheme } from "./useNeuTheme";
@@ -38,6 +40,7 @@ export const Console = ({ roomId }: { roomId: string }) => {
   const [tab, setTab] = useState<MobileTab>("A");
   const [crewOpen, setCrewOpen] = useState(false);
   const [theme, toggleTheme] = useNeuTheme();
+  const [layout, setLayout] = useLayoutPreference();
   const canDj = useCanDj();
   const [listening, setListening] = useState(false);
   const showDecks = canDj && !listening;
@@ -61,6 +64,8 @@ export const Console = ({ roomId }: { roomId: string }) => {
         crewOpen={crewOpen}
         onToggleCrew={() => setCrewOpen((open) => !open)}
         view={canDj ? (listening ? "listener" : "decks") : undefined}
+        layout={layout}
+        onLayoutChange={setLayout}
         onToggleView={() => setListening((l) => !l)}
       />
 
@@ -88,22 +93,14 @@ export const Console = ({ roomId }: { roomId: string }) => {
         <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-2 sm:p-3">
           {!hasDjState && <div className="text-center text-xs text-[var(--neu-muted)]">Connecting to the decks…</div>}
 
-          {/* Stacked zoomed waveforms, rekordbox style */}
-          <div className="neu-well flex shrink-0 flex-col gap-1 p-1.5">
+          {/* Phone / tablet: stacked zoomed waveforms (desktop layouts bring their own) */}
+          <div className="neu-well flex shrink-0 flex-col gap-1 p-1.5 lg:hidden">
             <ScrollingWaveform deckId="A" className="h-14 w-full sm:h-16" />
             <ScrollingWaveform deckId="B" className="h-14 w-full sm:h-16" />
           </div>
 
-          {/* Desktop: decks around the mixer, library below */}
-          {/* pb-28 keeps the last library rows clear of the pinned minimap */}
-          <div className="hidden min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-28 lg:flex">
-            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3">
-              <Deck deckId="A" />
-              <Mixer />
-              <Deck deckId="B" />
-            </div>
-            <Library className="min-h-[14rem] flex-1" />
-          </div>
+          {/* Desktop: the chosen layout preset. pb-28 keeps the bottom clear of the pinned minimap */}
+          <ConsoleLayout layout={layout} className="hidden min-h-0 flex-1 flex-col overflow-y-auto pb-28 lg:flex" />
 
           {/* Phone / tablet: one section at a time */}
           <div className="flex min-h-0 flex-1 flex-col gap-2 lg:hidden">
