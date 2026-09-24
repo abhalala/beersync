@@ -2,11 +2,13 @@ import { z } from "zod";
 import { LOW_PASS_CONSTANTS } from "../constants";
 import {
   LocationSchema,
+  ReactionEmojiSchema,
   PauseActionSchema,
   PlayActionSchema,
   SetPlaybackControlsSchema,
 } from "./WSRequest";
 import { AudioSourceSchema, ChatMessageSchema, PositionSchema } from "./basic";
+import { DeckStateSchema, MixerStateSchema } from "./dj";
 
 // Server -> client message types (mirrors ClientActionEnum for client -> server)
 export const ServerActionEnum = z.enum([
@@ -18,6 +20,7 @@ export const ServerActionEnum = z.enum([
   "NTP_RESPONSE", // Reply to an NTP_REQUEST time sync probe
   "SEARCH_RESPONSE", // Music search results
   "LIVENESS_PING", // Liveness probe; client replies with LIVENESS_PONG
+  "DJ_NOTICE", // Feedback for a DJ command (e.g. deck locked, track not analyzed)
 ]);
 
 // Client change
@@ -33,6 +36,8 @@ export const ClientDataSchema = z.object({
   lastLivenessPingAt: z.number().default(0), // When the server last sent a LIVENESS_PING (server-managed)
   isAdmin: z.boolean().default(false), // Admin status
   isCreator: z.boolean().default(false), // Site creator badge
+  isBeerHolder: z.boolean().default(false), // Beersync: may use the decks ("holds a beer")
+  wantsBeer: z.boolean().default(false), // Beersync: listener asked to join the decks
   location: LocationSchema.optional(),
   joinedAt: z.number(), // Timestamp when the client joined the room
 });
@@ -66,6 +71,35 @@ const LoadAudioSourceSchema = z.object({
 });
 export type LoadAudioSourceType = z.infer<typeof LoadAudioSourceSchema>;
 
+// DJ console snapshots (full state on join, then per-deck / mixer updates)
+const DjStateEventSchema = z.object({
+  type: z.literal("DJ_STATE"),
+  decks: z.array(DeckStateSchema),
+  mixer: MixerStateSchema,
+});
+export type DjStateEventType = z.infer<typeof DjStateEventSchema>;
+
+const DjDeckStateEventSchema = z.object({
+  type: z.literal("DJ_DECK_STATE"),
+  deck: DeckStateSchema,
+});
+export type DjDeckStateEventType = z.infer<typeof DjDeckStateEventSchema>;
+
+const DjMixerStateEventSchema = z.object({
+  type: z.literal("DJ_MIXER_STATE"),
+  mixer: MixerStateSchema,
+});
+export type DjMixerStateEventType = z.infer<typeof DjMixerStateEventSchema>;
+
+// Ephemeral listener/DJ reaction (never stored)
+const ReactionEventSchema = z.object({
+  type: z.literal("REACTION"),
+  clientId: z.string(),
+  username: z.string(),
+  emoji: ReactionEmojiSchema,
+});
+export type ReactionEventType = z.infer<typeof ReactionEventSchema>;
+
 const RoomEventSchema = z.object({
   type: z.literal(ServerActionEnum.enum.ROOM_EVENT),
   event: z.discriminatedUnion("type", [
@@ -74,16 +108,17 @@ const RoomEventSchema = z.object({
     SetPlaybackControlsSchema,
     ChatUpdateSchema,
     LoadAudioSourceSchema,
+    DjStateEventSchema,
+    DjDeckStateEventSchema,
+    DjMixerStateEventSchema,
+    ReactionEventSchema,
   ]),
 });
 
 // SCHEDULED ACTIONS
 const SpatialConfigSchema = z.object({
   type: z.literal("SPATIAL_CONFIG"),
-  gains: z.record(
-    z.string(),
-    z.object({ gain: z.number().min(0).max(1), rampTime: z.number() })
-  ),
+  gains: z.record(z.string(), z.object({ gain: z.number().min(0).max(1), rampTime: z.number() })),
   listeningSource: PositionSchema,
 });
 
