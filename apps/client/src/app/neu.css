@@ -1,0 +1,866 @@
+/*
+ * Beersync neumorphic console — design tokens + component styles.
+ * Scope: everything lives under `.neu` so it never leaks into the rest of
+ * the app. `.neu` = dark "hardware" graphite (default);
+ * `.neu[data-theme="light"]` = classic light neumorphism.
+ * Components: apps/client/src/components/neu/*
+ *
+ * Contrast (WCAG): text/bg 13.4:1 dark, 12.7:1 light; muted ≥ 5.5:1;
+ * deck accents ≥ 5:1 on the surface and ≥ 4.3:1 on the LCD in both themes.
+ */
+
+.neu {
+  color-scheme: dark;
+
+  /* surfaces */
+  --neu-bg: #1e2128;
+  --neu-bg-2: #272b33;
+  --neu-bg-deep: #16181d;
+  --neu-hi: rgb(255 255 255 / 0.055);
+  --neu-lo: rgb(0 0 0 / 0.55);
+  --neu-edge: rgb(255 255 255 / 0.06);
+  --neu-track: #3a404c;
+
+  /* text */
+  --neu-text: #e7eaf0;
+  --neu-muted: #9aa3b2;
+
+  /* accents */
+  --deck-a: #3ccbe2;
+  --deck-b: #f3a53d;
+  --neu-ok: #3ddc84;
+  --neu-warn: #f5c542;
+  --neu-crit: #ff5a5a;
+  --neu-focus: #8ab4ff;
+
+  /* LCD */
+  --neu-lcd-bg: #0c1518;
+  --neu-lcd-text: #c8f6ff;
+  --neu-lcd-muted: #7fa3ab;
+
+  /* elevation */
+  --neu-raised: 8px 8px 18px var(--neu-lo), -6px -6px 16px var(--neu-hi), inset 0 1px 0 var(--neu-edge);
+  --neu-soft: 3px 3px 8px var(--neu-lo), -2px -2px 6px var(--neu-hi), inset 0 1px 0 var(--neu-edge);
+  --neu-inset: inset 3px 3px 8px var(--neu-lo), inset -2px -2px 6px var(--neu-hi);
+  --neu-pressed: inset 2px 2px 6px var(--neu-lo), inset -1px -1px 4px var(--neu-hi);
+
+  --neu-font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+
+  background: var(--neu-bg);
+  color: var(--neu-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.neu[data-theme="light"] {
+  color-scheme: light;
+
+  --neu-bg: #e3e7ee;
+  --neu-bg-2: #edf0f4;
+  --neu-bg-deep: #d6dbe3;
+  --neu-hi: rgb(255 255 255 / 0.9);
+  --neu-lo: rgb(94 106 128 / 0.42);
+  --neu-edge: rgb(255 255 255 / 0.7);
+  --neu-track: #c3c9d3;
+
+  --neu-text: #1d2330;
+  --neu-muted: #4f5868;
+
+  --deck-a: #006a7c;
+  --deck-b: #8f4c00;
+  --neu-ok: #1c8a4a;
+  --neu-warn: #b07400;
+  --neu-crit: #c62828;
+  --neu-focus: #1d4ed8;
+
+  --neu-lcd-bg: #cfdcc8;
+  --neu-lcd-text: #1b2a17;
+  --neu-lcd-muted: #4a5a44;
+}
+
+/* ─── shared ─────────────────────────────────────────────────────────── */
+
+/* Neumorphism's soft edges make focus invisible — use a hard, high-contrast ring. */
+.neu .neu-focusable:focus {
+  outline: none;
+}
+.neu .neu-focusable:focus-visible {
+  outline: 2px solid var(--neu-focus);
+  outline-offset: 3px;
+}
+
+.neu-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--neu-muted);
+  text-align: center;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* value tooltip shown while dragging / hovering / keyboard-focused */
+.neu-readout {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  transform: translate(-50%, 2px);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--neu-lcd-bg);
+  color: var(--neu-lcd-text);
+  font: 600 11px/1.2 var(--neu-font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: var(--neu-soft);
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+[data-active] > .neu-readout,
+.neu-focusable:focus-visible > .neu-readout {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+@media (hover: hover) {
+  .neu-focusable:hover > .neu-readout {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.neu-led {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--led, var(--neu-ok)) 22%, var(--neu-bg-deep));
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.35);
+}
+.neu-led[data-state="on"],
+.neu-led[data-state="blink"] {
+  background: var(--led, var(--neu-ok));
+  box-shadow:
+    0 0 6px var(--led, var(--neu-ok)),
+    0 0 1px var(--led, var(--neu-ok));
+}
+.neu-led[data-state="blink"] {
+  animation: neu-blink 1s steps(1, end) infinite;
+}
+@keyframes neu-blink {
+  50% {
+    background: color-mix(in srgb, var(--led, var(--neu-ok)) 22%, var(--neu-bg-deep));
+    box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* ─── panel ──────────────────────────────────────────────────────────── */
+
+.neu-panel {
+  background: var(--neu-bg);
+  border-radius: 18px;
+}
+.neu-panel[data-variant="raised"] {
+  box-shadow: var(--neu-raised);
+}
+.neu-panel[data-variant="inset"] {
+  background: var(--neu-bg-deep);
+  box-shadow: var(--neu-inset);
+}
+.neu-panel[data-variant="flat"] {
+  box-shadow: 0 0 0 1px var(--neu-edge);
+}
+.neu-panel[data-rounded="sm"] {
+  border-radius: 8px;
+}
+.neu-panel[data-rounded="md"] {
+  border-radius: 12px;
+}
+.neu-panel[data-rounded="xl"] {
+  border-radius: 26px;
+}
+
+/* ─── knob ───────────────────────────────────────────────────────────── */
+
+.neu-knob {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.neu-knob-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--knob-hit);
+  height: var(--knob-hit);
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.neu-knob-svg {
+  position: absolute;
+  inset: calc((var(--knob-hit) - var(--knob-size)) / 2);
+  width: var(--knob-size);
+  height: var(--knob-size);
+  overflow: visible;
+  pointer-events: none;
+}
+.neu-knob-track,
+.neu-knob-arc {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.neu-knob-track {
+  stroke: var(--neu-track);
+}
+.neu-knob-arc {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 3px var(--accent));
+}
+.neu-knob-detent {
+  stroke: var(--neu-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.neu-knob-cap {
+  position: relative;
+  width: calc(var(--knob-size) * 0.7);
+  height: calc(var(--knob-size) * 0.7);
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--neu-bg-2), var(--neu-bg));
+  box-shadow: var(--neu-soft);
+  pointer-events: none;
+}
+.neu-knob-rot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: transform 90ms linear;
+}
+.neu-knob-dial[data-active] .neu-knob-rot {
+  transition: none;
+}
+.neu-knob-pointer {
+  position: absolute;
+  top: 9%;
+  left: 50%;
+  width: 3px;
+  height: 30%;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  background: var(--neu-text);
+  box-shadow: 0 0 4px var(--accent);
+}
+.neu-knob[data-disabled] {
+  opacity: 0.45;
+}
+.neu-knob[data-disabled] .neu-knob-dial {
+  cursor: not-allowed;
+}
+
+/* ─── fader ──────────────────────────────────────────────────────────── */
+
+.neu-fader {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  --cap-long: 44px;
+  --cap-short: 26px;
+}
+.neu-fader-body {
+  position: relative;
+  border-radius: 12px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-body {
+  width: 48px;
+  height: var(--fader-length, 180px);
+  cursor: ns-resize;
+}
+.neu-fader[data-orientation="horizontal"] {
+  width: var(--fader-length, 200px);
+  max-width: 100%;
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-body {
+  width: 100%;
+  height: 48px;
+  cursor: ew-resize;
+}
+.neu-fader-groove {
+  position: absolute;
+  border-radius: 3px;
+  background: var(--neu-bg-deep);
+  box-shadow: var(--neu-inset);
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-groove {
+  top: 8px;
+  bottom: 8px;
+  left: calc(50% - 3px);
+  width: 6px;
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-groove {
+  left: 8px;
+  right: 8px;
+  top: calc(50% - 3px);
+  height: 6px;
+}
+.neu-fader-rail {
+  position: absolute;
+  pointer-events: none;
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-rail {
+  inset: calc(var(--cap-short) / 2) 0;
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-rail {
+  inset: 0 calc(var(--cap-short) / 2);
+}
+.neu-fader-tick {
+  position: absolute;
+  opacity: 0.55;
+  --tick: var(--neu-muted);
+}
+.neu-fader-tick[data-major] {
+  opacity: 1;
+  --tick: var(--neu-text);
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-tick {
+  left: 2px;
+  right: 2px;
+  top: calc(var(--pos) * 100%);
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    var(--tick) 0 9px,
+    transparent 9px calc(100% - 9px),
+    var(--tick) calc(100% - 9px)
+  );
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-tick {
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--pos) * 100%);
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--tick) 0 9px,
+    transparent 9px calc(100% - 9px),
+    var(--tick) calc(100% - 9px)
+  );
+}
+.neu-fader-tick[data-major] {
+  height: 2px;
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-tick[data-major] {
+  width: 2px;
+  height: auto;
+}
+.neu-fader-carriage {
+  position: absolute;
+  inset: 0;
+  transition: transform 80ms linear;
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-carriage {
+  transform: translateY(calc(var(--pos) * 100%));
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-carriage {
+  transform: translateX(calc(var(--pos) * 100%));
+}
+.neu-fader-body[data-active] .neu-fader-carriage {
+  transition: none;
+}
+.neu-fader-cap {
+  position: absolute;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--neu-bg-2) 0%, var(--neu-bg) 48%, var(--neu-bg-2) 52%, var(--neu-bg) 100%);
+  box-shadow: var(--neu-raised);
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-cap {
+  left: 50%;
+  top: 0;
+  width: var(--cap-long);
+  height: var(--cap-short);
+  transform: translate(-50%, -50%);
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-cap {
+  top: 50%;
+  left: 0;
+  width: var(--cap-short);
+  height: var(--cap-long);
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, var(--neu-bg-2) 0%, var(--neu-bg) 48%, var(--neu-bg-2) 52%, var(--neu-bg) 100%);
+}
+.neu-fader-cap-line {
+  position: absolute;
+  border-radius: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--accent);
+}
+.neu-fader[data-orientation="vertical"] .neu-fader-cap-line {
+  left: 5px;
+  right: 5px;
+  top: calc(50% - 1px);
+  height: 2px;
+}
+.neu-fader[data-orientation="horizontal"] .neu-fader-cap-line {
+  top: 5px;
+  bottom: 5px;
+  left: calc(50% - 1px);
+  width: 2px;
+}
+.neu-fader[data-disabled] {
+  opacity: 0.45;
+}
+.neu-fader[data-disabled] .neu-fader-body {
+  cursor: not-allowed;
+}
+
+/* ─── buttons ────────────────────────────────────────────────────────── */
+
+.neu-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--neu-bg-2), var(--neu-bg));
+  color: var(--neu-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: var(--neu-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    box-shadow 90ms ease,
+    transform 90ms ease,
+    background 90ms ease;
+}
+.neu-btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.neu-btn[data-size="sm"] {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+.neu-btn[data-size="lg"] {
+  min-height: 52px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+.neu-btn:active:not(:disabled),
+.neu-btn[data-active] {
+  background: var(--neu-bg);
+  box-shadow: var(--neu-pressed);
+}
+.neu-btn:active:not(:disabled) .neu-btn-content {
+  transform: translateY(1px);
+}
+.neu-btn[data-active] {
+  box-shadow:
+    var(--neu-pressed),
+    0 0 0 1px color-mix(in srgb, var(--led, var(--neu-text)) 55%, transparent),
+    0 0 14px color-mix(in srgb, var(--led, var(--neu-text)) 28%, transparent);
+}
+.neu-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.neu-btn[data-variant="transport"] {
+  flex-direction: column;
+  gap: 4px;
+  width: 64px;
+  height: 64px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow:
+    var(--neu-raised),
+    inset 0 0 0 2px color-mix(in srgb, var(--led, var(--neu-muted)) 35%, transparent);
+}
+.neu-btn[data-variant="transport"][data-size="sm"] {
+  width: 48px;
+  height: 48px;
+}
+.neu-btn[data-variant="transport"][data-size="lg"] {
+  width: 76px;
+  height: 76px;
+}
+.neu-btn[data-variant="transport"]:active:not(:disabled),
+.neu-btn[data-variant="transport"][data-active] {
+  box-shadow:
+    var(--neu-pressed),
+    inset 0 0 0 2px var(--led, var(--neu-text)),
+    0 0 18px color-mix(in srgb, var(--led, var(--neu-text)) 40%, transparent);
+}
+.neu-btn[data-variant="transport"] .neu-led {
+  position: absolute;
+  top: 10px;
+  left: calc(50% - 3.5px);
+}
+.neu-btn[data-variant="pad"] {
+  border-radius: 8px;
+  aspect-ratio: 1;
+  padding: 0;
+}
+.neu-btn[data-variant="ghost"] {
+  background: transparent;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .neu-btn[data-variant="ghost"]:hover:not(:disabled) {
+    background: var(--neu-bg);
+    box-shadow: var(--neu-soft);
+  }
+}
+.neu-btn[data-variant="ghost"]:active:not(:disabled) {
+  box-shadow: var(--neu-pressed);
+}
+
+/* ─── toggle ─────────────────────────────────────────────────────────── */
+
+.neu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--neu-bg-2), var(--neu-bg));
+  color: var(--neu-muted);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: var(--neu-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: box-shadow 90ms ease;
+}
+.neu-toggle[data-active] {
+  background: var(--neu-bg);
+  color: var(--neu-text);
+  box-shadow: var(--neu-pressed);
+}
+.neu-toggle:active:not(:disabled) {
+  box-shadow: var(--neu-pressed);
+}
+.neu-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── pads ───────────────────────────────────────────────────────────── */
+
+.neu-pads {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: 8px;
+}
+.neu-pad {
+  position: relative;
+  min-height: 44px;
+  aspect-ratio: 5 / 4;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--neu-bg-2), var(--neu-bg));
+  color: var(--neu-muted);
+  font-family: inherit;
+  box-shadow: var(--neu-soft);
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition:
+    box-shadow 70ms ease,
+    background 70ms ease;
+}
+.neu-pad[data-set] {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--pad) 34%, var(--neu-bg-2)),
+    color-mix(in srgb, var(--pad) 20%, var(--neu-bg))
+  );
+  color: var(--neu-text);
+  box-shadow:
+    var(--neu-soft),
+    inset 0 0 0 1px color-mix(in srgb, var(--pad) 70%, transparent),
+    0 0 12px color-mix(in srgb, var(--pad) 35%, transparent);
+}
+.neu-pad:active:not(:disabled) {
+  box-shadow: var(--neu-pressed);
+}
+.neu-pad[data-set]:active:not(:disabled) {
+  background: color-mix(in srgb, var(--pad) 55%, var(--neu-bg));
+  box-shadow:
+    var(--neu-pressed),
+    inset 0 0 0 1px var(--pad),
+    0 0 20px color-mix(in srgb, var(--pad) 55%, transparent);
+}
+.neu-pad:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.neu-pad-num {
+  position: absolute;
+  top: 5px;
+  left: 7px;
+  font: 600 11px/1 var(--neu-font-mono);
+}
+.neu-pad-label {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── jog wheel ──────────────────────────────────────────────────────── */
+
+.neu-jog {
+  position: relative;
+  width: min(var(--jog-size), 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, var(--neu-bg-2), var(--neu-bg) 70%);
+  box-shadow: var(--neu-raised);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.neu-jog[data-touching] {
+  cursor: grabbing;
+}
+.neu .neu-jog.neu-focusable:focus-visible {
+  outline-offset: 5px;
+}
+.neu-jog-grip {
+  position: absolute;
+  inset: 3%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, var(--neu-edge) 0 1.5deg, transparent 1.5deg 5deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 77%, #000 78% 100%);
+  mask: radial-gradient(circle, transparent 0 77%, #000 78% 100%);
+  pointer-events: none;
+}
+.neu-jog-top {
+  position: absolute;
+  inset: 13%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 38% 30%, var(--neu-bg-2), var(--neu-bg-deep) 75%);
+  box-shadow: var(--neu-inset);
+  pointer-events: none;
+}
+.neu-jog-top::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: box-shadow 120ms ease;
+}
+.neu-jog[data-touching="top"] .neu-jog-top::after {
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    inset 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.neu-jog-marker {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.neu-jog-marker > span {
+  position: absolute;
+  top: 4%;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 17%;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+.neu-jog-center {
+  position: absolute;
+  inset: 31%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--neu-bg-2), var(--neu-bg));
+  box-shadow: var(--neu-soft);
+  text-align: center;
+  pointer-events: none;
+}
+.neu-jog[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── LED meter ──────────────────────────────────────────────────────── */
+
+.neu-meter {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.neu-meter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: calc(var(--meter-w) + 6px);
+  height: var(--meter-h);
+  padding: 3px;
+  border-radius: 5px;
+  background: var(--neu-bg-deep);
+  box-shadow: var(--neu-inset);
+}
+.neu-meter-seg {
+  flex: 1;
+  border-radius: 1.5px;
+  --seg: var(--neu-ok);
+  background: color-mix(in srgb, var(--seg) 14%, var(--neu-bg-deep));
+}
+.neu-meter-seg[data-zone="warn"] {
+  --seg: var(--neu-warn);
+}
+.neu-meter-seg[data-zone="crit"] {
+  --seg: var(--neu-crit);
+}
+.neu-meter-seg[data-on="1"],
+.neu-meter-seg[data-on="peak"] {
+  background: var(--seg);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--seg) 60%, transparent);
+}
+
+/* ─── LCD ────────────────────────────────────────────────────────────── */
+
+.neu-lcd {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 11px 8px;
+  border-radius: 8px;
+  background: var(--neu-lcd-bg);
+  box-shadow: var(--neu-inset);
+  color: var(--neu-lcd-text);
+  font-family: var(--neu-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.neu-lcd-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--neu-lcd-muted);
+}
+.neu-lcd-value {
+  overflow: hidden;
+  color: var(--lcd-accent, var(--neu-lcd-text));
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px color-mix(in srgb, currentColor 40%, transparent);
+  white-space: nowrap;
+}
+.neu-lcd[data-size="sm"] .neu-lcd-value {
+  font-size: 16px;
+}
+.neu-lcd[data-size="lg"] .neu-lcd-value {
+  font-size: 32px;
+}
+.neu-lcd-sub {
+  font-size: 11px;
+  color: var(--neu-lcd-muted);
+}
+@media (max-width: 420px) {
+  .neu-lcd[data-size="md"] .neu-lcd-value {
+    font-size: 18px;
+  }
+}
+.neu[data-theme="light"] .neu-lcd-value {
+  text-shadow: none;
+}
+
+/* ─── accessibility modes ────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .neu,
+  .neu *,
+  .neu *::before,
+  .neu *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Windows High Contrast: shadows vanish, so draw real borders. */
+@media (forced-colors: active) {
+  .neu-btn,
+  .neu-toggle,
+  .neu-pad,
+  .neu-knob-cap,
+  .neu-fader-cap,
+  .neu-fader-groove,
+  .neu-jog,
+  .neu-jog-top,
+  .neu-lcd,
+  .neu-panel,
+  .neu-meter-list {
+    border: 1px solid CanvasText;
+  }
+  .neu-btn[data-active],
+  .neu-toggle[data-active],
+  .neu-pad[data-set] {
+    outline: 2px solid Highlight;
+  }
+  .neu-knob-arc,
+  .neu-fader-cap-line,
+  .neu-jog-marker > span,
+  .neu-led[data-state="on"],
+  .neu-meter-seg[data-on="1"],
+  .neu-meter-seg[data-on="peak"] {
+    forced-color-adjust: none;
+  }
+}

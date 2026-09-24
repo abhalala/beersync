@@ -387,6 +387,20 @@ const downloadBufferFromURL = async (data: { url: string; onProgress?: (loaded: 
 
 const initializationMutex = new Mutex();
 
+/**
+ * Beersync: may this person use the decks? Beer holders and the sesh host can,
+ * and an "open bar" sesh (everyone may control playback) gives everyone a beer.
+ */
+export const useCanDj = () => {
+  const currentUser = useGlobalStore((state) => state.currentUser);
+  const playbackControlsPermissions = useGlobalStore((state) => state.playbackControlsPermissions);
+  return (
+    !!currentUser?.isAdmin ||
+    !!currentUser?.isBeerHolder ||
+    playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.EVERYONE
+  );
+};
+
 // Selector for canMutate
 export const useCanMutate = () => {
   const currentUser = useGlobalStore((state) => state.currentUser);
@@ -1468,7 +1482,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       const newAudioSources: AudioSourceState[] = sources.map((source) => {
         const existing = existingByUrl.get(source.url);
         if (existing) {
-          return existing;
+          // Keep the loaded buffer but take the server's latest metadata (analysis, titles)
+          return { ...existing, source };
         }
         return {
           source,

@@ -1,0 +1,124 @@
+/* Beersync console helpers built on the neumorphic tokens in neu.css */
+
+.neu {
+  --neu-line: color-mix(in srgb, var(--neu-text) 9%, transparent);
+}
+
+/* Small raised pill button (load, claim, tabs, toolbar) */
+.neu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.6rem;
+  background: var(--neu-bg);
+  color: var(--neu-muted);
+  box-shadow: var(--neu-soft);
+  transition:
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+.neu-chip:hover:not(:disabled) {
+  color: var(--neu-text);
+}
+.neu-chip:active:not(:disabled) {
+  box-shadow: var(--neu-pressed);
+}
+.neu-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.neu-chip:focus-visible,
+.neu-input:focus-within {
+  outline: 2px solid var(--neu-focus);
+  outline-offset: 2px;
+}
+
+/* Recessed areas: tables, waveform trough, active tabs */
+.neu-well {
+  border-radius: 1rem;
+  background: var(--neu-bg);
+  box-shadow: var(--neu-inset);
+}
+.neu-inset-sm {
+  box-shadow: var(--neu-inset);
+}
+
+.neu-input {
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  background: var(--neu-bg);
+  color: var(--neu-text);
+  box-shadow: var(--neu-inset);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neu-chip {
+    transition: none;
+  }
+}
+
+/* Floating raised surfaces (minimap, popovers) */
+.neu-popover {
+  border-radius: 1rem;
+  background: var(--neu-bg);
+  color: var(--neu-text);
+  box-shadow:
+    var(--neu-raised),
+    0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+/* Minimap beat pulse, driven by --beat (0..1) set per frame */
+.sesh-pulse {
+  background: radial-gradient(circle, color-mix(in srgb, var(--deck-a) 40%, transparent), transparent 70%);
+  opacity: calc(0.1 + var(--beat, 0) * 0.55);
+  transform: scale(calc(1 + var(--beat, 0) * 0.06));
+}
+
+/* Reaction bubbles rising from a person / the screen */
+@keyframes sesh-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -40px) scale(1);
+  }
+}
+.sesh-float {
+  animation: sesh-float 2.6s ease-out forwards;
+}
+@keyframes sesh-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(-4vh) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-45vh) scale(1);
+  }
+}
+.sesh-rise {
+  animation: sesh-rise 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sesh-pulse {
+    transform: none;
+  }
+  .sesh-float,
+  .sesh-rise {
+    animation-duration: 0.01s;
+  }
+}
