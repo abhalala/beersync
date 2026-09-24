@@ -130,8 +130,10 @@ Check each catalogue's terms before using its tracks in public shows.
 
 ```sh
 bun run test        # all test suites through Turborepo (don't run bare `bun test` at the repo root)
-bun client          # client only
-bun server          # server only
+bun client          # build + start client only (production, no hot reload)
+bun server          # build + start server only (production, no hot reload)
+bun run dev --filter=client   # client dev server (hot reload)
+bun run dev --filter=server   # server dev (or: cd apps/server && bun dev)
 
 cd apps/server && bun test && bun run typecheck && bun run lint
 cd apps/client && bun test && bun run typecheck && bun run lint
