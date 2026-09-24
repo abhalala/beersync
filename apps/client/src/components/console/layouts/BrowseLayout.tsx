@@ -2,6 +2,7 @@
 import { Fader, NeuPanel } from "@/components/neu";
 import { useCanDj } from "@/store/global";
 import { useDjStore } from "@/store/dj";
+import { CompactTransport } from "../CompactTransport";
 import { deckColor } from "../Deck";
 import { DeckStrip } from "../DeckStrip";
 import { Library } from "../Library";
@@ -53,10 +54,12 @@ export const BrowseLayout = () => (
       <div className="flex flex-col gap-1.5">
         <DeckStrip deckId="A" />
         <ScrollingWaveform deckId="A" className="h-8 w-full rounded-lg neu-inset-sm" />
+        <CompactTransport deckId="A" layout="row" padGrid={false} loopToggle />
       </div>
       <div className="flex flex-col gap-1.5">
         <DeckStrip deckId="B" />
         <ScrollingWaveform deckId="B" className="h-8 w-full rounded-lg neu-inset-sm" />
+        <CompactTransport deckId="B" layout="row" padGrid={false} loopToggle />
       </div>
     </div>
     <MinimalMixer />
