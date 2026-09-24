@@ -162,7 +162,17 @@ export const Library = ({ className }: { className?: string }) => {
       }),
     []
   );
+  // Only scroll in response to an actual selection change (browse knob / keyboard nav), not
+  // on mount: this effect otherwise fires for every fresh Library instance too (e.g. when a
+  // layout preset is switched, remounting Library), scrolling the shared console container
+  // away from the top and hiding the deck panels above the fold. Comparing against the last
+  // index we actually scrolled to (seeded from the current value at mount) — rather than a
+  // "have we run yet" flag — keeps this correct under React StrictMode's double-invoked
+  // effects in dev, which would otherwise defeat a simple first-run guard.
+  const lastScrolledIndex = useRef(selectedIndex);
   useEffect(() => {
+    if (lastScrolledIndex.current === selectedIndex) return;
+    lastScrolledIndex.current = selectedIndex;
     document.querySelector(`[data-library-row="${selectedIndex}"]`)?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 

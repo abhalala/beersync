@@ -7,7 +7,7 @@ import { SyncProgress } from "@/components/ui/SyncProgress";
 import { cn } from "@/lib/utils";
 import { useDjStore } from "@/store/dj";
 import { useCanDj, useGlobalStore } from "@/store/global";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConsoleTopBar } from "./ConsoleTopBar";
 import { Deck } from "./Deck";
 import { Library } from "./Library";
@@ -45,6 +45,14 @@ export const Console = ({ roomId }: { roomId: string }) => {
   const [listening, setListening] = useState(false);
   const showDecks = canDj && !listening;
   useDeckShortcuts(showDecks);
+
+  // Presets differ a lot in total height (e.g. Browse vs. Vertical); a scroll position
+  // that made sense in one can leave the next preset's deck panels scrolled out of view
+  // above the fold. Snap back to the top whenever the preset changes.
+  const layoutScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    layoutScrollRef.current?.scrollTo({ top: 0 });
+  }, [layout]);
 
   // The start gesture is only offered once synced, so a started system has
   // synced before: a later sync loss (reconnect mid-set) keeps the console up
@@ -100,7 +108,11 @@ export const Console = ({ roomId }: { roomId: string }) => {
           </div>
 
           {/* Desktop: the chosen layout preset. pb-28 keeps the bottom clear of the pinned minimap */}
-          <ConsoleLayout layout={layout} className="hidden min-h-0 flex-1 flex-col overflow-y-auto pb-28 lg:flex" />
+          <ConsoleLayout
+            ref={layoutScrollRef}
+            layout={layout}
+            className="hidden min-h-0 flex-1 flex-col overflow-y-auto pb-28 lg:flex"
+          />
 
           {/* Phone / tablet: one section at a time */}
           <div className="flex min-h-0 flex-1 flex-col gap-2 lg:hidden">
