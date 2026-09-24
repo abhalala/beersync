@@ -94,14 +94,14 @@ You don't need Cloudflare R2 to develop. Without the `S3_*` variables the server
 | `AUDIUS_API_URL`, `AUDIUS_APP_NAME`, `AUDIUS_DISABLED` | Audius source settings (`AUDIUS_DISABLED=1` turns it off) | `https://api.audius.co/v1`, `beersync`, enabled |
 | `JAMENDO_CLIENT_ID`, `JAMENDO_API_URL` | Enables the Jamendo source | Jamendo off |
 | `PROVIDER_URL` | Beatsync's music provider service (search + stream) | off |
-| `CREATOR_SECRET` | Gives a creator badge to the client that connects with it | unset |
+| `CREATOR_SECRET` | Beatsync's creator flag: the client that connects with it is renamed `freemanjiang` and gets a Creator badge in the party view | unset |
 | `DEMO`, `DEMO_AUDIO_DIR`, `DEMO_ADMIN_SECRET` | Beatsync's offline demo mode | off |
 
 **Client** (`apps/client/.env`)
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL` | Server HTTP and WebSocket URLs. If both are unset the client uses its own origin (`/ws` for the socket), which suits a reverse proxy serving client and server together. |
+| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL` | Server HTTP and WebSocket URLs. Set both or neither; if either is missing the client uses its own origin for both (`/ws` for the socket), which suits a reverse proxy serving client and server together. |
 | `NEXT_PUBLIC_POSTHOG_KEY` | Optional analytics |
 | `NEXT_PUBLIC_DEMO_MODE` | Beatsync demo mode |
 
@@ -145,9 +145,9 @@ A pre-commit hook (lefthook) formats, lints and type-checks staged files.
 
 Beersync deploys the way Beatsync does:
 
-- **Server:** the `Dockerfile` builds and runs the Bun server on port 8080 (`bun run docker:prod`), or use PM2 with `pm2.config.js` after `bun run build`. Graceful shutdown backs up state to R2 when R2 is configured.
+- **Server:** the `Dockerfile` builds and runs the Bun server on port 8080 (`bun run docker:prod`, which needs `apps/server/.env` to exist — it can be empty, or hold just `PUBLIC_SERVER_URL` — since `docker run` is passed `--env-file apps/server/.env`), or use PM2 with `pm2.config.js` after `bun run build` (its interpreter expects `bun` from mise shims at `~/.local/share/mise/shims/bun`, so mise needs to be installed there, or swap the interpreter for plain `bun`). Graceful shutdown backs up state to R2 when R2 is configured.
 - **Client:** any Next.js host; `vercel.json` is set up for Vercel.
-- **Same origin:** to serve both from one domain, put a reverse proxy in front that forwards `/ws` with WebSocket upgrade, and leave the `NEXT_PUBLIC_*` URLs unset.
+- **Same origin:** to serve both from one domain, put a reverse proxy in front that forwards `/ws` (with WebSocket upgrade) plus the server's HTTP paths (`/upload/`, `/library/`, `/media/`, `/media-upload/`, `/active-rooms`, `/discover`, `/stats`, `/default`, `/health`), and leave the `NEXT_PUBLIC_*` URLs unset. Without R2, also set `PUBLIC_SERVER_URL` to the proxy's public origin, or the local media links the server hands out will point at `http://localhost:8080`.
 
 ## Roadmap
 
