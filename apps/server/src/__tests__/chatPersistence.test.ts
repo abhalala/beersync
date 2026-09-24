@@ -17,6 +17,8 @@ describe("Chat Persistence", () => {
       isActive: true,
       isAdmin: false,
       isCreator: false,
+      isBeerHolder: false,
+      wantsBeer: false,
       joinedAt: Date.now(),
       rtt: 50,
       compensationMs: 0,

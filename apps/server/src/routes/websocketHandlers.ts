@@ -117,6 +117,13 @@ export const handleOpen = (ws: ServerWebSocket<WSData>, server: BunServer) => {
     },
   });
 
+  // Full DJ console state (decks carry their own timeline anchors, so a late
+  // joiner can start each deck at the right position without a separate SYNC)
+  sendToClient({
+    ws,
+    message: { type: "ROOM_EVENT", event: { type: "DJ_STATE", ...room.getDj().getState() } },
+  });
+
   const messages = room.getFullChatHistory();
   if (messages.length > 0) {
     sendToClient({
@@ -210,7 +217,10 @@ export const handleMessage = async (ws: ServerWebSocket<WSData>, message: string
     }
 
     const parsedMessage = WSRequestSchema.parse(parsedData);
-    console.log(`[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`);
+    // Mixer drags arrive ~20x/s per DJ; logging each would drown the log
+    if (parsedMessage.type !== "DJ_MIXER_UPDATE") {
+      console.log(`[Room: ${roomId}] | User: ${username} | Message: ${JSON.stringify(parsedMessage)}`);
+    }
 
     // Delegate to type-safe dispatcher
     await dispatchMessage({ ws, message: parsedMessage, server });

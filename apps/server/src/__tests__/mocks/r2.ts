@@ -22,6 +22,11 @@ export function mockR2(overrides: Record<string, ReturnType<typeof mock>> = {}):
       /* noop */
     }),
     validateAudioFileExists: mock(() => true),
+    // Storage driver selection + I/O used by @/storage (pure helpers stay real)
+    validateR2Config: mock(() => ({ isValid: true, errors: [] })),
+    uploadBytes: mock(() => "https://cdn.test/uploaded.mp3"),
+    generatePresignedUploadUrl: mock(() => "https://r2.test/presigned"),
+    listObjectsWithPrefix: mock(() => []),
     cleanupOrphanedRooms: mock(() => ({
       orphanedRooms: [],
       totalRooms: 0,
