@@ -1,5 +1,7 @@
 # Beersync
 
+**[beersync.fm](https://beersync.fm)** (launching when the product is ready)
+
 Beersync is a multiplayer DJ console that runs in the browser. Everyone in a **sesh** hears the same mix, in sync, on their own device. The people holding a **beer** run the decks together; everyone else listens along, reacts, and can ask for a beer to jump on.
 
 It is a rebuild of [Beatsync](https://github.com/freeman-jiang/beatsync) ([beatsync.gg](https://www.beatsync.gg/)), the open-source multi-device audio player. Beersync keeps Beatsync's sync engine (NTP-style clock sync and server-scheduled playback) and puts a two-deck, rekordbox-style console with a neumorphic look on top of it.

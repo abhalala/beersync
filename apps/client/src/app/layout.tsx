@@ -31,6 +31,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://beersync.fm"),
   title: "Beersync",
   description:
     "Co-DJ in the browser. Beersync is a multiplayer DJ console where everyone mixes the same decks and every device plays the mix in sync.",

@@ -36,7 +36,7 @@ export const Left = ({ className }: LeftProps) => {
         <div className="bg-neutral-800 rounded-md p-1.5">
           <Music className="h-4 w-4 text-white" />
         </div>
-        <h1 className="font-semibold text-white">Beatsync</h1>
+        <h1 className="font-semibold text-white">Beersync</h1>
       </div>
 
 
