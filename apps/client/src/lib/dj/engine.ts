@@ -24,6 +24,28 @@ const PARAM_SMOOTHING = 0.012; // seconds (time constant for knob moves)
 const START_MARGIN_SEC = 0.03; // minimum lead time when a start time is already in the past
 const CONTINUITY_TOLERANCE_SEC = 0.004;
 
+const sameLoop = (a: DeckState["loop"], b: DeckState["loop"]): boolean =>
+  (a === null && b === null) || (a !== null && b !== null && a.startSec === b.startSec && a.endSec === b.endSec);
+
+/**
+ * Whether `next` continues the timeline a voice is already playing for `prev`,
+ * so the voice must keep running (at most a rate change) instead of restarting.
+ * An unchanged snapshot (e.g. DJ_STATE re-sent on reconnect) always continues:
+ * the comparison is in server time, independent of this device's clock offset.
+ */
+export const isDeckContinuation = (prev: DeckState, next: DeckState): boolean => {
+  if (prev.trackUrl !== next.trackUrl || prev.status !== "playing" || next.status !== "playing") return false;
+  if (!sameLoop(prev.loop, next.loop)) return false;
+  if (
+    prev.anchorServerTime === next.anchorServerTime &&
+    prev.anchorPositionSec === next.anchorPositionSec &&
+    prev.pitchPercent === next.pitchPercent
+  )
+    return true;
+  const expected = deckPositionAt(prev, next.anchorServerTime);
+  return Math.abs(expected - next.anchorPositionSec) < CONTINUITY_TOLERANCE_SEC;
+};
+
 interface Channel {
   trim: GainNode;
   low: BiquadFilterNode;
@@ -161,17 +183,7 @@ class DjEngine {
   }
 
   private isContinuation(voice: Voice, deck: DeckState, buffer: AudioBuffer): boolean {
-    const prev = voice.deck;
-    if (voice.buffer !== buffer || prev.trackUrl !== deck.trackUrl || prev.status !== "playing") return false;
-    const sameLoop =
-      (prev.loop === null && deck.loop === null) ||
-      (prev.loop !== null &&
-        deck.loop !== null &&
-        prev.loop.startSec === deck.loop.startSec &&
-        prev.loop.endSec === deck.loop.endSec);
-    if (!sameLoop) return false;
-    const expected = deckPositionAt(prev, deck.anchorServerTime);
-    return Math.abs(expected - deck.anchorPositionSec) < CONTINUITY_TOLERANCE_SEC;
+    return voice.buffer === buffer && isDeckContinuation(voice.deck, deck);
   }
 
   applyMixer(mixer: MixerState): void {

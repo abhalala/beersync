@@ -1,6 +1,7 @@
 "use client";
 import { MAX_NTP_MEASUREMENTS, useGlobalStore } from "@/store/global";
 import { useDjStore } from "@/store/dj";
+import { cn } from "@/lib/utils";
 import { ControllerButton } from "./ControllerButton";
 import { Check, Copy, Crown, Headphones, Moon, PartyPopper, SlidersHorizontal, Sun, Users } from "lucide-react";
 import Link from "next/link";
@@ -27,6 +28,8 @@ export const ConsoleTopBar = ({
   onToggleView,
 }: ConsoleTopBarProps) => {
   const isSynced = useGlobalStore((s) => s.isSynced);
+  // Lost sync after audio started (reconnect mid-set): the console stays up
+  const isResyncing = useGlobalStore((s) => !s.isSynced && s.hasUserStartedSystem && !s.isInitingSystem);
   const rtt = useGlobalStore((s) => s.roundTripEstimate);
   const measurements = useGlobalStore((s) => s.syncMeasurements.length);
   const clients = useGlobalStore((s) => s.connectedClients);
@@ -70,11 +73,22 @@ export const ConsoleTopBar = ({
       </button>
 
       <div
-        className="hidden items-center gap-1.5 font-mono text-[11px] text-[var(--neu-muted)] sm:flex"
-        title="Clock sync with the room"
+        className={cn(
+          "items-center gap-1.5 font-mono text-[11px] text-[var(--neu-muted)]",
+          isResyncing ? "flex" : "hidden sm:flex"
+        )}
+        title={isResyncing ? "Connection dropped; re-syncing the clock with the room" : "Clock sync with the room"}
+        role={isResyncing ? "status" : undefined}
       >
-        <span className="size-2 rounded-full" style={{ background: syncColor, boxShadow: `0 0 6px ${syncColor}` }} />
-        {isSynced ? `${rtt.toFixed(0)} ms` : `sync ${measurements}/${MAX_NTP_MEASUREMENTS}`}
+        <span
+          className={cn("size-2 rounded-full", isResyncing && "animate-pulse")}
+          style={{ background: syncColor, boxShadow: `0 0 6px ${syncColor}` }}
+        />
+        {isSynced
+          ? `${rtt.toFixed(0)} ms`
+          : isResyncing
+            ? "Resyncing…"
+            : `sync ${measurements}/${MAX_NTP_MEASUREMENTS}`}
       </div>
 
       {djs.size > 0 && (

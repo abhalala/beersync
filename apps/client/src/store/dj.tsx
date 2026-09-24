@@ -2,7 +2,7 @@ import { getDeckBuffer, loadDeckBuffer, setPinnedBuffers } from "@/lib/dj/buffer
 import { serverNow } from "@/lib/dj/clock";
 import { djEngine } from "@/lib/dj/engine";
 import { analyzeInWorker, type TrackAnalysisResult } from "@/lib/dj/analysis";
-import { useGlobalStore } from "@/store/global";
+import { isClockTrusted, useGlobalStore } from "@/store/global";
 import { sendWSRequest } from "@/utils/ws";
 import type {
   BeatGrid,
@@ -36,7 +36,8 @@ interface DjValues {
 }
 
 interface DjActions {
-  applyDjState: (state: DjState) => void;
+  /** Full snapshot sent on (re)join; bootId identifies the server process */
+  applyDjState: (state: DjState & { bootId?: string }) => void;
   applyDeckState: (deck: DeckState) => void;
   applyMixerState: (mixer: MixerState) => void;
   ensureTrack: (url: string) => void;
@@ -87,6 +88,15 @@ const isAudioStarted = () => {
   return hasUserStartedSystem && !isInitingSystem;
 };
 
+/**
+ * Deck audio is placed on the room timeline through the clock offset, so it
+ * must wait for a trustworthy offset. Right after a reconnect the offset is
+ * either kept from the same server process (trusted) or reset because the
+ * server restarted (untrusted until re-synced). Snapshots that arrive while
+ * untrusted are only stored; every deck is reconciled once trust returns.
+ */
+const canPlaceDeckAudio = () => isAudioStarted() && isClockTrusted(useGlobalStore.getState());
+
 export const useDjStore = create<DjValues & DjActions>((set, get) => {
   let pendingMixerPatch: MixerPatch | null = null;
   let mixerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -109,7 +119,7 @@ export const useDjStore = create<DjValues & DjActions>((set, get) => {
   });
 
   const reconcileDeck = (deckId: DeckId) => {
-    if (!isAudioStarted()) return;
+    if (!canPlaceDeckAudio()) return;
     const deck = get().decks[deckId];
     djEngine.applyDeck(deck, deck.trackUrl ? getDeckBuffer(deck.trackUrl) : undefined);
   };
@@ -146,7 +156,7 @@ export const useDjStore = create<DjValues & DjActions>((set, get) => {
   return {
     ...initialValues(),
 
-    applyDjState: ({ decks, mixer }) => {
+    applyDjState: ({ decks, mixer, bootId }) => {
       // Full snapshot on (re)join is authoritative, even if versions went backwards
       // (e.g. the server restored an older backup)
       const next = { ...get().decks };
@@ -156,7 +166,13 @@ export const useDjStore = create<DjValues & DjActions>((set, get) => {
       for (const deck of decks) {
         if (deck.trackUrl) get().ensureTrack(deck.trackUrl);
       }
-      get().reconcileAudio();
+      // Before any deck is placed: a restarted server invalidates the clock, the
+      // same server makes the kept clock trusted again (which reconciles every
+      // deck through the subscription below, so don't do it twice)
+      const wasTrusted = isClockTrusted(useGlobalStore.getState());
+      useGlobalStore.getState().setServerBootId(bootId);
+      const trustedNow = isClockTrusted(useGlobalStore.getState());
+      if (wasTrusted || !trustedNow) get().reconcileAudio();
     },
 
     applyDeckState: (deck) => {
@@ -205,6 +221,7 @@ export const useDjStore = create<DjValues & DjActions>((set, get) => {
 
     reconcileAudio: () => {
       if (!isAudioStarted()) return;
+      // Mixer gains don't depend on the clock
       djEngine.applyMixer(get().mixer);
       for (const id of DECK_IDS) reconcileDeck(id);
     },
@@ -252,11 +269,15 @@ export const getDeckDisplayPosition = (deckId: DeckId): number => {
   return deckPositionAt(inEffect, now, duration);
 };
 
-// Start the decks as soon as the listener starts audio (the "Start" gesture)
+// Start the decks as soon as the listener starts audio (the "Start" gesture),
+// and catch every deck up to its latest snapshot once the clock is trustworthy
+// again after a reconnect
 if (typeof window !== "undefined") {
   useGlobalStore.subscribe((state, prev) => {
     const started = state.hasUserStartedSystem && !state.isInitingSystem;
     const wasStarted = prev.hasUserStartedSystem && !prev.isInitingSystem;
-    if (started && !wasStarted) useDjStore.getState().reconcileAudio();
+    const trusted = isClockTrusted(state);
+    const wasTrusted = isClockTrusted(prev);
+    if ((started && !wasStarted) || (started && trusted && !wasTrusted)) useDjStore.getState().reconcileAudio();
   });
 }

@@ -30,6 +30,10 @@ const MOBILE_TABS: { id: MobileTab; label: string }[] = [
 export const Console = ({ roomId }: { roomId: string }) => {
   const isSynced = useGlobalStore((s) => s.isSynced);
   const isInitingSystem = useGlobalStore((s) => s.isInitingSystem);
+  const hasUserStartedSystem = useGlobalStore((s) => s.hasUserStartedSystem);
+  const reconnectionFailed = useGlobalStore(
+    (s) => s.reconnectionInfo.isReconnecting && s.reconnectionInfo.currentAttempt >= s.reconnectionInfo.maxAttempts
+  );
   const hasDjState = useDjStore((s) => s.hasState);
   const [tab, setTab] = useState<MobileTab>("A");
   const [crewOpen, setCrewOpen] = useState(false);
@@ -39,7 +43,11 @@ export const Console = ({ roomId }: { roomId: string }) => {
   const showDecks = canDj && !listening;
   useDeckShortcuts(showDecks);
 
-  const isReady = isSynced && !isInitingSystem;
+  // The start gesture is only offered once synced, so a started system has
+  // synced before: a later sync loss (reconnect mid-set) keeps the console up
+  // and ConsoleTopBar shows "Resyncing…"; the decks wait for the clock
+  // themselves (store/dj.tsx). A reconnect that gave up still takes over.
+  const isReady = (isSynced || hasUserStartedSystem) && !isInitingSystem && !reconnectionFailed;
 
   return (
     <div

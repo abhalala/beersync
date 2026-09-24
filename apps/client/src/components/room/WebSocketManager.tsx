@@ -111,7 +111,9 @@ export const WebSocketManager = ({ roomId, username }: WebSocketManagerProps) =>
       // Stop NTP heartbeat
       stopHeartbeat();
 
-      // Clear NTP measurements on new connection to avoid stale data
+      // Re-probe the clock on the next connection. The offset estimate is kept
+      // until the new connection's DJ_STATE says whether the server restarted
+      // (then it is reset); see onConnectionReset / setServerBootId.
       useGlobalStore.getState().onConnectionReset();
 
       // Schedule reconnection with exponential backoff

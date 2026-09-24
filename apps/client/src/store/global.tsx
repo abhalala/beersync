@@ -116,6 +116,17 @@ interface GlobalStateValues {
   isSynced: boolean;
   nudgeOffsetMs: number;
   probeStats: { totalSent: number; pureCount: number; impureCount: number };
+  /**
+   * Boot id of the server process on the current connection (from DJ_STATE).
+   * null until the connection's DJ_STATE arrives, and again after a disconnect.
+   */
+  serverBootId: string | null;
+  /**
+   * Boot id of the server process that offsetEstimate was fully synced against.
+   * Survives reconnects, so a reconnect to the same process can keep trusting
+   * the previous estimate while it re-probes.
+   */
+  syncedBootId: string | null;
 
   // Audio Player
   audioPlayer: AudioPlayerState | null;
@@ -190,6 +201,8 @@ interface GlobalState extends GlobalStateValues {
   sendProbePair: () => void;
   nudge: (data: { amountMs: number }) => void;
   resetNTPConfig: () => void;
+  /** Record the server process id from DJ_STATE; resets the clock estimate if the server restarted */
+  setServerBootId: (bootId: string | undefined) => void;
   addProbePairResult: (result: NTPMeasurement) => void;
   onConnectionReset: () => void;
   playAudio: (data: { offset: number; when: number; absoluteStartTime?: number; audioIndex?: number }) => void;
@@ -270,6 +283,8 @@ const initialState: GlobalStateValues = {
   isSynced: false,
   nudgeOffsetMs: 0,
   probeStats: { totalSent: 0, pureCount: 0, impureCount: 0 },
+  serverBootId: null,
+  syncedBootId: null,
 
   // Loading state
   isInitingSystem: true,
@@ -326,6 +341,14 @@ const getSocket = (state: GlobalState) => {
 };
 
 export const MAX_TRUSTWORTHY_OUTPUT_LATENCY_MS = 100;
+
+/**
+ * Whether offsetEstimate can be used to place audio on the room timeline:
+ * either a full sync on this connection, or an earlier full sync against the
+ * same server process (a reconnect that is still re-probing).
+ */
+export const isClockTrusted = (state: Pick<GlobalStateValues, "isSynced" | "serverBootId" | "syncedBootId">): boolean =>
+  state.isSynced || (state.serverBootId !== null && state.serverBootId === state.syncedBootId);
 
 /**
  * Read the browser's outputLatency, filtering out garbage values (e.g. Bluetooth reporting 648ms).
@@ -1064,8 +1087,19 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         offsetEstimate: 0,
         roundTripEstimate: 0,
         isSynced: false,
+        syncedBootId: null,
         // nudgeOffsetMs is intentionally NOT reset — it's a user preference persisted on the server
       });
+    },
+
+    setServerBootId: (bootId) => {
+      const { syncedBootId, isSynced } = get();
+      // A different (or unknown) process means a server restart: its clock
+      // estimate is meaningless now, so start over as on a fresh connection
+      if (syncedBootId !== null && bootId !== syncedBootId) get().resetNTPConfig();
+      const id = bootId ?? null;
+      // Sync can finish before DJ_STATE arrives; attribute it to this process
+      set({ serverBootId: id, ...(isSynced && get().syncedBootId === null ? { syncedBootId: id } : {}) });
     },
 
     addProbePairResult: (result) => {
@@ -1084,7 +1118,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
         offsetEstimate: averageOffset,
         roundTripEstimate: averageRoundTrip,
         probeStats: getProbeStats(),
-        ...(nowSynced ? { isSynced: true } : {}),
+        ...(nowSynced ? { isSynced: true, syncedBootId: prev.serverBootId } : {}),
       });
 
       // In demo mode, NTP sync just completed — eagerly load idle audio sources
@@ -1105,8 +1139,13 @@ export const useGlobalStore = create<GlobalState>((set, get) => {
       // Allow nudge to be restored from server on next CLIENT_CHANGE
       set({ didRestoreNudge: false });
 
-      // Delegate NTP reset to the single source of truth
-      get().resetNTPConfig();
+      // Re-probe from scratch (fast cadence, isSynced false until a fresh full
+      // set of measurements), but keep offsetEstimate/roundTripEstimate and
+      // syncedBootId: if the reconnect lands on the same server process
+      // (setServerBootId on DJ_STATE), the previous estimate stays usable
+      // meanwhile; if the server restarted, setServerBootId resets it.
+      resetProbeState();
+      set({ syncMeasurements: [], isSynced: false, serverBootId: null });
     },
 
     getCurrentTrackPosition: () => {

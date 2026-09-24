@@ -76,6 +76,8 @@ const DjStateEventSchema = z.object({
   type: z.literal("DJ_STATE"),
   decks: z.array(DeckStateSchema),
   mixer: MixerStateSchema,
+  /** Server process id; changes on restart, so clients know when their clock estimate is stale */
+  bootId: z.string().optional(),
 });
 export type DjStateEventType = z.infer<typeof DjStateEventSchema>;
 
