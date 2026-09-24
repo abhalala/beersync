@@ -28,7 +28,13 @@ export const SeshMinimap = ({ className }: { className?: string }) => {
   const openBar = useGlobalStore(
     (s) => s.playbackControlsPermissions === PlaybackControlsPermissionsEnum.enum.EVERYONE
   );
-  const decks = useDjStore((s) => s.decks);
+  // Only the clientIds this component compares, so decks re-renders (e.g. on
+  // every pitch-drag SET_PITCH commit) don't force this whole client list to
+  // re-render when nothing it shows actually changed.
+  const lockedByA = useDjStore((s) => s.decks.A.lockedBy?.clientId);
+  const lockedByB = useDjStore((s) => s.decks.B.lockedBy?.clientId);
+  const lastActorA = useDjStore((s) => s.decks.A.lastActor?.clientId);
+  const lastActorB = useDjStore((s) => s.decks.B.lastActor?.clientId);
   const reactions = useSeshStore((s) => s.reactions);
   const { passBeer, requestBeer, setOpenBar } = useSeshStore();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -49,9 +55,11 @@ export const SeshMinimap = ({ className }: { className?: string }) => {
   });
 
   const deckOf = (clientId: string) =>
-    (["A", "B"] as const).find(
-      (d) => decks[d].lockedBy?.clientId === clientId || decks[d].lastActor?.clientId === clientId
-    );
+    lockedByA === clientId || lastActorA === clientId
+      ? "A"
+      : lockedByB === clientId || lastActorB === clientId
+        ? "B"
+        : undefined;
 
   const iCanPass = !!me && (me.isAdmin || me.isBeerHolder);
   const requests = clients.filter((c) => c.wantsBeer && !c.isBeerHolder && !c.isAdmin);

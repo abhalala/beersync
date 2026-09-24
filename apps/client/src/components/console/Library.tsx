@@ -33,18 +33,23 @@ const displayTitle = (url: string, title?: string) => title ?? trimFileName(extr
 
 /** The key harmonic suggestions are relative to: the master deck's track, else any loaded deck */
 const useReferenceKey = (): string | undefined => {
-  const masterDeck = useDjStore((s) => s.mixer.masterDeck);
-  const decks = useDjStore((s) => s.decks);
+  // Subscribe to the room collection reactively (already read elsewhere too),
+  // then derive a single primitive result from the dj store so this hook only
+  // re-renders when the resolved key actually changes, not on every deck/mixer
+  // update touching fields this hook doesn't use.
   const audioSources = useGlobalStore((s) => s.audioSources);
-  const tracks = useDjStore((s) => s.tracks);
-  const order: DeckId[] = masterDeck ? [masterDeck, masterDeck === "A" ? "B" : "A"] : ["A", "B"];
-  for (const id of order) {
-    const url = decks[id].trackUrl;
-    if (!url) continue;
-    const key = audioSources.find((s) => s.source.url === url)?.source.meta?.key ?? tracks[url]?.analysis?.key;
-    if (key) return key;
-  }
-  return undefined;
+  return useDjStore((s) => {
+    const order: DeckId[] = s.mixer.masterDeck
+      ? [s.mixer.masterDeck, s.mixer.masterDeck === "A" ? "B" : "A"]
+      : ["A", "B"];
+    for (const id of order) {
+      const url = s.decks[id].trackUrl;
+      if (!url) continue;
+      const key = audioSources.find((src) => src.source.url === url)?.source.meta?.key ?? s.tracks[url]?.analysis?.key;
+      if (key) return key;
+    }
+    return undefined;
+  });
 };
 
 export const Library = ({ className }: { className?: string }) => {
@@ -54,7 +59,17 @@ export const Library = ({ className }: { className?: string }) => {
   const audioSources = useGlobalStore((s) => s.audioSources);
   const activeImports = useGlobalStore((s) => s.activeStreamJobs);
   const tracks = useDjStore((s) => s.tracks);
-  const decks = useDjStore((s) => s.decks);
+  // Only the two fields this component reads, so mixer-only broadcasts
+  // (which leave s.decks untouched) and unrelated deck-field changes don't
+  // force a re-render here.
+  const deckAStatus = useDjStore((s) => s.decks.A.status);
+  const deckATrackUrl = useDjStore((s) => s.decks.A.trackUrl);
+  const deckBStatus = useDjStore((s) => s.decks.B.status);
+  const deckBTrackUrl = useDjStore((s) => s.decks.B.trackUrl);
+  const decks = {
+    A: { status: deckAStatus, trackUrl: deckATrackUrl },
+    B: { status: deckBStatus, trackUrl: deckBTrackUrl },
+  } as const;
   const sendDeckCommand = useDjStore((s) => s.sendDeckCommand);
   const importTrack = useDjStore((s) => s.importTrack);
   const referenceKey = useReferenceKey();

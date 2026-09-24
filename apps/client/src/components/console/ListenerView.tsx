@@ -3,20 +3,60 @@ import { cn, extractFileNameFromUrl, trimFileName } from "@/lib/utils";
 import { getBeatGrid, getTrackMeta, useDjStore } from "@/store/dj";
 import { useGlobalStore } from "@/store/global";
 import { useSeshStore } from "@/store/sesh";
-import type { DeckId } from "@beatsync/shared";
+import type { DeckId, MixerChannel } from "@beatsync/shared";
 import { camelotToKeyName, channelOutputGain, deckRate, REACTION_EMOJIS } from "@beatsync/shared";
 import { Disc3, Hand } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { deckColor } from "./Deck";
 import { ScrollingWaveform } from "./WaveformView";
 
 /** How loud each deck is in the room right now (0..1), from the shared mixer state */
 const useAudibleDecks = (): { deckId: DeckId; level: number }[] => {
-  const decks = useDjStore((s) => s.decks);
-  const mixer = useDjStore((s) => s.mixer);
+  // Flatten to the exact primitive fields channelOutputGain needs. s.mixer is
+  // replaced wholesale on every DJ_MIXER_STATE broadcast (~20/s while any DJ
+  // drags a fader), so selecting the channel objects themselves would still
+  // re-render every message even when nothing relevant changed.
+  const state = useDjStore(
+    useShallow((s) => ({
+      statusA: s.decks.A.status,
+      statusB: s.decks.B.status,
+      trimDbA: s.mixer.channels.A.trimDb,
+      faderA: s.mixer.channels.A.fader,
+      assignA: s.mixer.channels.A.crossfaderAssign,
+      trimDbB: s.mixer.channels.B.trimDb,
+      faderB: s.mixer.channels.B.fader,
+      assignB: s.mixer.channels.B.crossfaderAssign,
+      crossfader: s.mixer.crossfader,
+      crossfaderCurve: s.mixer.crossfaderCurve,
+    }))
+  );
+  const mixer = { crossfader: state.crossfader, crossfaderCurve: state.crossfaderCurve };
+  // eqHigh/eqMid/eqLow/filter aren't read by channelOutputGain; zero-filled to satisfy the type.
+  const channelFor = (deckId: DeckId): MixerChannel =>
+    deckId === "A"
+      ? {
+          trimDb: state.trimDbA,
+          fader: state.faderA,
+          crossfaderAssign: state.assignA,
+          eqHigh: 0,
+          eqMid: 0,
+          eqLow: 0,
+          filter: 0,
+        }
+      : {
+          trimDb: state.trimDbB,
+          fader: state.faderB,
+          crossfaderAssign: state.assignB,
+          eqHigh: 0,
+          eqMid: 0,
+          eqLow: 0,
+          filter: 0,
+        };
+  const statusOf = (deckId: DeckId) => (deckId === "A" ? state.statusA : state.statusB);
   return (["A", "B"] as const)
     .map((deckId) => ({
       deckId,
-      level: decks[deckId].status === "playing" ? Math.min(1, channelOutputGain(mixer.channels[deckId], mixer)) : 0,
+      level: statusOf(deckId) === "playing" ? Math.min(1, channelOutputGain(channelFor(deckId), mixer)) : 0,
     }))
     .filter((d) => d.level > 0.03)
     .sort((a, b) => b.level - a.level);
@@ -24,12 +64,14 @@ const useAudibleDecks = (): { deckId: DeckId; level: number }[] => {
 
 const NowPlayingCard = ({ deckId, level, primary }: { deckId: DeckId; level: number; primary: boolean }) => {
   const deck = useDjStore((s) => s.decks[deckId]);
-  const tracks = useDjStore((s) => s.tracks);
+  const track = useDjStore((s) => (deck.trackUrl ? s.tracks[deck.trackUrl] : undefined));
   // Subscribe to the collection so titles/analysis update live
   useGlobalStore((s) => s.audioSources);
   const meta = getTrackMeta(deck.trackUrl);
-  const grid = getBeatGrid(deck.trackUrl, tracks);
-  const key = meta?.key ?? (deck.trackUrl ? tracks[deck.trackUrl]?.analysis?.key : undefined);
+  // Minimal single-entry record: avoids subscribing to the whole tracks map
+  // (which would re-render this card whenever ANY track's state changes).
+  const grid = getBeatGrid(deck.trackUrl, deck.trackUrl && track ? { [deck.trackUrl]: track } : {});
+  const key = meta?.key ?? track?.analysis?.key;
   const title = deck.trackUrl ? (meta?.title ?? trimFileName(extractFileNameFromUrl(deck.trackUrl))) : "";
   const color = deckColor(deckId);
 

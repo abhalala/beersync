@@ -58,7 +58,6 @@ export const Deck = ({ deckId, className }: { deckId: DeckId; className?: string
   const deck = useDjStore((s) => s.decks[deckId]);
   const masterDeck = useDjStore((s) => s.mixer.masterDeck);
   const track = useDjStore((s) => (deck.trackUrl ? s.tracks[deck.trackUrl] : undefined));
-  const tracks = useDjStore((s) => s.tracks);
   const send = useDjStore((s) => s.sendDeckCommand);
   const sendMixerPatch = useDjStore((s) => s.sendMixerPatch);
   const claimDeck = useDjStore((s) => s.claimDeck);
@@ -73,7 +72,9 @@ export const Deck = ({ deckId, className }: { deckId: DeckId; className?: string
   const loaded = deck.status !== "empty" && !!deck.trackUrl;
   const lockedByOther = !!deck.lockedBy && deck.lockedBy.clientId !== currentUser?.clientId && !currentUser?.isAdmin;
   const disabled = !canMutate || lockedByOther;
-  const grid = getBeatGrid(deck.trackUrl, tracks);
+  // Minimal single-entry record: avoids subscribing to the whole tracks map
+  // (which would re-render this deck whenever ANY track's state changes).
+  const grid = getBeatGrid(deck.trackUrl, deck.trackUrl && track ? { [deck.trackUrl]: track } : {});
   const bpm = grid ? grid.bpm * deckRate(deck) : undefined;
   const key = meta?.key ?? track?.analysis?.key;
   const title = deck.trackUrl

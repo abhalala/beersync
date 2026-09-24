@@ -7,6 +7,7 @@ import { useCanDj, useGlobalStore } from "@/store/global";
 import type { CrossfaderAssign, DeckId, MixerChannel } from "@beatsync/shared";
 import { eqKnobToDb, filterKnobToFreqs } from "@beatsync/shared";
 import { useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { deckColor } from "./Deck";
 import { useAnimationFrame } from "./useAnimationFrame";
 
@@ -19,7 +20,11 @@ const formatFilter = (v: number) => {
 };
 
 const ChannelStrip = ({ deckId, disabled }: { deckId: DeckId; disabled: boolean }) => {
-  const channel = useDjStore((s) => s.mixer.channels[deckId]);
+  // Shallow-compare so this strip only re-renders when ITS channel's fields
+  // actually change value, not on every DJ_MIXER_STATE broadcast (~20/s while
+  // any DJ drags a fader), which otherwise recreates s.mixer.channels[deckId]
+  // wholesale each time.
+  const channel = useDjStore(useShallow((s) => s.mixer.channels[deckId]));
   const sendMixerPatch = useDjStore((s) => s.sendMixerPatch);
   const meterRef = useRef<LedMeterHandle>(null);
   const color = deckColor(deckId);
@@ -127,7 +132,10 @@ const ChannelStrip = ({ deckId, disabled }: { deckId: DeckId; disabled: boolean 
 };
 
 export const Mixer = ({ className }: { className?: string }) => {
-  const mixer = useDjStore((s) => s.mixer);
+  // Primitive selectors: only re-render when the specific field changes,
+  // not on every DJ_MIXER_STATE broadcast (which replaces s.mixer wholesale).
+  const crossfader = useDjStore((s) => s.mixer.crossfader);
+  const crossfaderCurve = useDjStore((s) => s.mixer.crossfaderCurve);
   const sendMixerPatch = useDjStore((s) => s.sendMixerPatch);
   const globalVolume = useGlobalStore((s) => s.globalVolume);
   const sendGlobalVolumeUpdate = useGlobalStore((s) => s.sendGlobalVolumeUpdate);
@@ -156,10 +164,10 @@ export const Mixer = ({ className }: { className?: string }) => {
             type="button"
             className="neu-chip font-mono text-[9px]"
             disabled={disabled}
-            onClick={() => sendMixerPatch({ crossfaderCurve: mixer.crossfaderCurve === "smooth" ? "sharp" : "smooth" })}
+            onClick={() => sendMixerPatch({ crossfaderCurve: crossfaderCurve === "smooth" ? "sharp" : "smooth" })}
             title="Crossfader curve"
           >
-            {mixer.crossfaderCurve === "smooth" ? "SMOOTH" : "SHARP"}
+            {crossfaderCurve === "smooth" ? "SMOOTH" : "SHARP"}
           </button>
         </div>
         <ChannelStrip deckId="B" disabled={disabled} />
@@ -173,7 +181,7 @@ export const Mixer = ({ className }: { className?: string }) => {
           max={1}
           step={0.002}
           defaultValue={0}
-          value={mixer.crossfader}
+          value={crossfader}
           color="var(--neu-text)"
           label="Crossfader"
           format={(v) =>
