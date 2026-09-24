@@ -212,7 +212,7 @@ export const Deck = ({ deckId, className }: { deckId: DeckId; className?: string
 
       {/* Hot cues */}
       <PadGrid
-        name={`Deck ${deckId} hot cues`}
+        name={`Deck ${deckId} hot cue`}
         color={color}
         disabled={disabled || !loaded}
         pads={deck.hotCues.map((cue, i) => (cue ? { color: cue.color, label: String.fromCharCode(65 + i) } : null))}
