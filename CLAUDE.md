@@ -123,6 +123,11 @@ S3_SECRET_ACCESS_KEY=
 - **PM2**: Config in `pm2.config.js`. Process name: `beatsync-server`.
 - Server has graceful shutdown (SIGTERM/SIGINT) that backs up state to R2 before exit.
 
+## Agent Communication
+
+- All agents working in this repo (main session and every subagent) use the `caveman` skill (`.claude/skills/caveman`, installed via `npx skills add https://github.com/juliusbrussee/caveman --skill caveman`) for chat replies and reports: terse, no filler, full technical accuracy.
+- Code, code comments, commit messages, PR text, and docs (README, SYNC_MODEL.md, CLAUDE.md) stay in normal prose, as the skill's own boundaries require.
+
 ## Development Notes
 
 - Both apps use `bun test`: server with sinon fake timers for stubs, client with happy-dom + `@testing-library/react` (preloads in `apps/client/bunfig.toml`)
